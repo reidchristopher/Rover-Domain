@@ -32,6 +32,6 @@ ext_modules = [
         ["rover_domain.pyx"],
          extra_compile_args=['-std=c++11'] ) ]
         
-setup(ext_modules = cythonize(ext_modules))
+setup(ext_modules = cythonize(ext_modules), zip_safe=False)
 
 sys.argv = old_sys_argv

@@ -579,7 +579,6 @@ cdef class RoverDomain:
         cdef Py_ssize_t rover_id
         
         global_eval = self.calc_traj_global_eval()
-        print(self.calc_traj_global_eval())
         for rover_id in range(self.n_rovers):
             self.rover_rewards[rover_id] = global_eval
     
