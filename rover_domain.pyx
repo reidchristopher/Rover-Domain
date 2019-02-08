@@ -11,7 +11,7 @@ from cython.operator cimport address
 from libcpp.vector cimport vector
 from libcpp.functional cimport function
 from libc cimport math as cmath
-from  temp_array cimport TempArray
+# from  temp_array cimport TempArray
 from libcpp.algorithm cimport partial_sort
 cimport cython
 
@@ -267,8 +267,7 @@ cdef class RoverDomain:
       
     cpdef double calc_step_eval_from_poi(self, Py_ssize_t poi_id):
         
-        cdef TempArray[double] sqr_dists_to_poi
-        sqr_dists_to_poi.alloc(self.buf, self.n_rovers)
+        cdef double[:] sqr_dists_to_poi = np.zeros(self.n_rovers)
         cdef double displ_x, displ_y, sqr_dist_sum
         cdef Py_ssize_t rover_id, near_rover_id
         
@@ -285,9 +284,7 @@ cdef class RoverDomain:
                
         # Sort (n_req) closest rovers for evaluation.
         # Sqr_dists_to_poi is no longer in rover order!
-        partial_sort(sqr_dists_to_poi.begin(), 
-            sqr_dists_to_poi.begin() + self.n_req,
-            sqr_dists_to_poi.end())
+        np.sort(sqr_dists_to_poi)
             
         
         # Is there (n_req) rovers observing? Only need to check the (n_req)th
@@ -311,10 +308,8 @@ cdef class RoverDomain:
             return self.poi_values[poi_id]    
 
     cpdef void update_local_step_reward_from_poi(self, Py_ssize_t poi_id):
-        cdef TempArray[double] sqr_dists_to_poi
-        sqr_dists_to_poi.alloc(self.buf, self.n_rovers)
-        cdef TempArray[double] sqr_dists_to_poi_unsorted
-        sqr_dists_to_poi_unsorted.alloc(self.buf, self.n_rovers)
+        cdef double[:] sqr_dists_to_poi = np.zeros(self.n_rovers)
+        cdef double[:] sqr_dists_to_poi_unsorted = np.zeros(self.n_rovers)
         cdef double displ_x, displ_y, sqr_dist_sum, l_reward
         cdef Py_ssize_t rover_id, near_rover_id
         
@@ -331,9 +326,7 @@ cdef class RoverDomain:
                
         # Sort (n_req) closest rovers for evaluation
         # Sqr_dists_to_poi is no longer in rover order!
-        partial_sort(sqr_dists_to_poi.begin(), 
-            sqr_dists_to_poi.begin() + self.n_req,
-            sqr_dists_to_poi.end())
+        np.sort(sqr_dists_to_poi)
             
         
         # Is there (n_req) rovers observing? Only need to check the (n_req)th
@@ -398,8 +391,7 @@ cdef class RoverDomain:
 
     cpdef double calc_traj_global_eval(self):
         cdef Py_ssize_t step_id, poi_id
-        cdef TempArray[double] poi_evals
-        poi_evals.alloc(self.buf, self.n_pois)
+        cdef double[:] poi_evals = np.zeros(self.n_pois)
         cdef double eval
         
         # Only evaluate trajectories at the end
@@ -428,18 +420,15 @@ cdef class RoverDomain:
         for poi_id in range(self.n_pois):
             eval += poi_evals[poi_id]
         
-        
-        return eval
-       
+        return eval       
 
     cpdef double calc_traj_cfact_global_eval(self, Py_ssize_t rover_id):
-        # Hack: simulate counterfactual by moving agent FAR AWAY, then calculate
-        cdef TempArray[double] actual_x_hist
-        actual_x_hist.alloc(self.buf, self.n_steps+1)
-        cdef TempArray[double] actual_y_hist
-        actual_y_hist.alloc(self.buf, self.n_steps+1)
+        cdef double[:] actual_x_hist = np.zeros(self.n_steps + 1)
+        cdef double[:] actual_y_hist = np.zeros(self.n_steps + 1)
         cdef double  far, eval
         cdef Py_ssize_t step_id
+
+        # Hack: simulate counterfactual by moving agent FAR AWAY, then calculate
         far = 1000000. # That's far enough, right?
         
         # Only evaluate trajectories at the end
@@ -466,7 +455,6 @@ cdef class RoverDomain:
                 actual_x_hist[step_id]
             self.rover_position_histories[step_id, rover_id, 1] = \
                 actual_y_hist[step_id]
-
                 
         return eval
 
