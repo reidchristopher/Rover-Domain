@@ -55,6 +55,8 @@ cdef class RoverDomain:
     cdef public str reward_structure
     cdef public bool poi_turnoff
     cdef public double[:] poi_status
+    cdef public double[:] rover_local_rewards
+    cdef public bool poi_disappear
     
     
     def __cinit__(self):
@@ -87,10 +89,12 @@ cdef class RoverDomain:
         self.poi_positions =  None
         self.rover_observations = None
         self.rover_rewards = None
+        self.rover_local_rewards = np.zeros(self.n_rovers)
 
         self.reward_structure = 'soft_distance'
         self.poi_turnoff = True
         self.poi_status = np.ones(self.n_pois)
+        self.poi_disappear = True
 
 
                         
@@ -177,6 +181,8 @@ cdef class RoverDomain:
         # Store first rover positions in histories
         # todo avoiding slicing for speed?
         self.rover_position_histories[0,...] = self.init_rover_positions
+
+        self.update_observations()
             
     cpdef void stop_prematurely(self):
         self.n_steps = self.step_id
@@ -186,6 +192,7 @@ cdef class RoverDomain:
         """
         Provided for convenience, not recommended for performance
         """
+        self.rover_local_rewards = np.zeros(self.n_rovers)
         if not self.done:
             if actions is not None:
                 self.move_rovers(actions)
@@ -202,9 +209,12 @@ cdef class RoverDomain:
         if evaluate:
             evaluate(self)
         else:
-            self.update_rewards_step_global_eval()
+            for poi_id in range(self.n_pois):
+                if self.poi_status[poi_id]:
+                    self.update_local_step_reward_from_poi(poi_id)
         self.update_observations()
-        return self.rover_observations, self.rover_rewards, self.done, self
+
+        return self.rover_observations, self.rover_local_rewards, self.done, self
     
 
     cpdef void move_rovers(self, double[:, :] actions):
@@ -249,7 +259,13 @@ cdef class RoverDomain:
                 self.rover_positions[rover_id, 0] += actions[rover_id, 0]
                 self.rover_positions[rover_id, 1] += actions[rover_id, 1]
                 
-    
+
+
+
+
+
+
+
     cpdef double calc_step_eval_from_poi(self, Py_ssize_t poi_id):
         # todo profile the benefit (or loss) of TempArray
         cdef TempArray[double] sqr_dists_to_poi
@@ -272,6 +288,8 @@ cdef class RoverDomain:
         partial_sort(sqr_dists_to_poi.begin(), 
             sqr_dists_to_poi.begin() + self.n_req,
             sqr_dists_to_poi.end())
+
+
         
         # Is there (n_req) rovers observing? Only need to check the (n_req)th
         # closest rover
@@ -279,6 +297,10 @@ cdef class RoverDomain:
                 self.interaction_dist * self.interaction_dist):
             # Not close enough?, then there is no reward for this POI
             return 0.
+
+        #Reward POIs
+
+
         #Yes? Continue evaluation
         self.poi_status[poi_id] = False
         if self.discounts_eval:
@@ -293,7 +315,66 @@ cdef class RoverDomain:
                 return self.poi_values[poi_id] - 0.01 * sqr_dist_sum
         # Do not discount POI evaluation
         else:
-            return self.poi_values[poi_id]    
+            return self.poi_values[poi_id]
+
+
+
+
+    cpdef double update_local_step_reward_from_poi(self, Py_ssize_t poi_id):
+        # todo profile the benefit (or loss) of TempArray
+        cdef TempArray[double] sqr_dists_to_poi
+        cdef TempArray[double] srq_dists_to_poi_unsorted
+        cdef double displ_x, displ_y, sqr_dist_sum, l_reward
+        cdef Py_ssize_t rover_id, near_rover_id
+        sqr_dists_to_poi.alloc(buf, self.n_rovers)
+        srq_dists_to_poi_unsorted.alloc(buf, self.n_rovers)
+        # Get the rover square distances to POIs.
+        for rover_id in range(self.n_rovers):
+            displ_x = (self.rover_positions[rover_id, 0]
+                - self.poi_positions[poi_id, 0])
+            displ_y = (self.rover_positions[rover_id, 1]
+                - self.poi_positions[poi_id, 1])
+            sqr_dists_to_poi[rover_id] = displ_x*displ_x + displ_y*displ_y
+            srq_dists_to_poi_unsorted[rover_id] = sqr_dists_to_poi[rover_id]
+
+        # Sort (n_req) closest rovers for evaluation
+        # Sqr_dists_to_poi is no longer in rover order!
+        partial_sort(sqr_dists_to_poi.begin(),
+            sqr_dists_to_poi.begin() + self.n_req,
+            sqr_dists_to_poi.end())
+
+        # Is there (n_req) rovers observing? Only need to check the (n_req)th
+        # closest rover
+        if (sqr_dists_to_poi[self.n_req-1] >
+                self.interaction_dist * self.interaction_dist):
+            # Not close enough?, then there is no reward for this POI
+            return 0.
+
+        self.poi_status[poi_id] = False
+        if self.discounts_eval:
+            sqr_dist_sum = 0.
+            # Get sum sqr distance of nearest rovers
+            for near_rover_id in range(self.n_req):
+                sqr_dist_sum += sqr_dists_to_poi[near_rover_id]
+            l_reward = self.poi_values[poi_id] / max(self.min_dist,
+                sqr_dist_sum)
+
+        # Do not discount POI evaluation
+        else:
+            l_reward = self.poi_values[poi_id]
+
+
+        #Yes? Continue evaluation
+        for rover_id in range(self.n_rovers):
+            for closest_rover_id in range(self.n_req):
+                if sqr_dists_to_poi[closest_rover_id] == (srq_dists_to_poi_unsorted[rover_id]):
+                    self.rover_local_rewards[rover_id] += l_reward
+                    sqr_dists_to_poi[closest_rover_id] = -1.
+
+        return 0.
+
+
+
 
     cpdef double calc_step_global_eval(self):
         cdef double eval
@@ -469,7 +550,7 @@ cdef class RoverDomain:
             for other_rover_id in range(self.n_rovers):
                 
                 # agents do not sense self (ergo skip self comparison)
-                if rover_id != other_rover_id:
+                if rover_id == other_rover_id:
                     continue
 
                 self.add_to_sensor(rover_id, 0, 
@@ -478,6 +559,8 @@ cdef class RoverDomain:
 
             # Update POI type observations
             for poi_id in range(self.n_pois):
+
+                if self.poi_disappear and self.poi_status[poi_id] == False: continue
             
                 self.add_to_sensor(rover_id, 1,
                     self.poi_positions[poi_id, 0], 
@@ -488,10 +571,7 @@ cdef class RoverDomain:
     cpdef void update_rewards_step_global_eval(self):
         cdef double global_eval
         cdef Py_ssize_t rover_id
-        
-        global_eval = self.calc_step_global_eval()
-        for rover_id in range(self.n_rovers):
-            self.rover_rewards[rover_id] = global_eval
+        self.calc_step_global_eval()
     
     
     cpdef void update_rewards_step_diff_eval(self):
