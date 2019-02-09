@@ -6,6 +6,7 @@ import multiprocessing
 import torch
 import random
 
+
 def policy_A(state):
     direction = int(np.argmax(state[4:8]))
     if direction == 0:
@@ -41,6 +42,7 @@ def policy_C(state):
     elif direction == 3:
         return [-0.7, 0.7]
 
+
 def evaluate_policy(policies):
     """
     Creates a new world, evaluates set of policies p on the world.
@@ -68,6 +70,7 @@ def evaluate_policy(policies):
         # Updates the sequence map
         rd.update_sequence_visits()
     return [rd.sequential_score()]*len(policies)
+
 
 def evaluate_policy_heirarchy(policies):
     """
@@ -129,7 +132,7 @@ def test_G():
     pool = multiprocessing.Pool(1)
     agents = []
     best_performance = []
-    for _ in range(3):
+    for _ in range(1):
         agents.append(Agent(19, 32, 2))
 
     with torch.set_grad_enabled(False):
@@ -142,9 +145,9 @@ def test_G():
             teams = teams.transpose()
             policy_teams = []
             for t in teams:
-                p = [agents[0].policy_pool[t[0]],
-                     agents[1].policy_pool[t[1]],
-                     agents[2].policy_pool[t[2]]]
+                p = [agents[0].policy_pool[t[0]]]#,
+                     # agents[1].policy_pool[t[1]],
+                     # agents[2].policy_pool[t[2]]]
                 policy_teams.append(p)
 
             team_performances = pool.map(evaluate_policy, policy_teams)
@@ -182,7 +185,7 @@ def test_heirarchy():
     pool = multiprocessing.Pool()
     agents = []
     best_performance = []
-    for _ in range(3):
+    for _ in range(1):
         agents.append(Agent(19, 32, 3))
 
     with torch.set_grad_enabled(False):
@@ -195,9 +198,9 @@ def test_heirarchy():
             teams = teams.transpose()
             policy_teams = []
             for t in teams:
-                p = [agents[0].policy_pool[t[0]],
-                     agents[1].policy_pool[t[1]],
-                     agents[2].policy_pool[t[2]]]
+                p = [agents[0].policy_pool[t[0]]]#,
+                     #agents[1].policy_pool[t[1]],
+                     #agents[2].policy_pool[t[2]]]
                 policy_teams.append(p)
 
             team_performances = pool.map(evaluate_policy_heirarchy, policy_teams)

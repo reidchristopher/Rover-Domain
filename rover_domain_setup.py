@@ -7,14 +7,11 @@ from Cython.Distutils import build_ext
 
 #Options.annotate = True
 
+extensions = [Extension('rover_domain', sources=['rover_domain.pyx'], extra_compile_args=['-std=c++11'])]
+
 setup(
     name="rover_domain",
-    ext_modules=[
-        Extension('rover_domain',
-            sources=['rover_domain.pyx'],
-            extra_compile_args=['-std=c++11'],
-            language='c++')
-        ],
-    cmdclass = {'build_ext': build_ext}
+    ext_modules=cythonize(extensions, gdb_debug=True),
+    cmdclass={'build_ext': build_ext}
 )
 

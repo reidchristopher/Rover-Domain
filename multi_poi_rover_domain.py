@@ -128,7 +128,6 @@ class SequentialPOIRD(rover_domain.RoverDomain):
                     self.poi_positions[poi_id, 1],
                     1.
                 )
-            # TODO add the "is observed section" ?
 
     def score_single_type(self, poi_type):
         """
