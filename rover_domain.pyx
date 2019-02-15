@@ -1,67 +1,8 @@
-# distutils: language = c++
-# cython: language_level=3, boundscheck=True
+import numpy as np
 
-# todo Convert to cpp or D and wrap
 # todo "sticky" POIs, when POI's are observed they (can) go away
 
-import numpy as np
-from cpython cimport bool
-from cython.view cimport array as cvarray
-from cython.operator cimport address
-from libcpp.vector cimport vector
-from libcpp.functional cimport function
-from libc cimport math as cmath
-# from  temp_array cimport TempArray
-from libcpp.algorithm cimport partial_sort
-cimport cython
-
-import time
-
-cdef extern from "math.h":
-    double sqrt(double m)
-
-cdef cython.numeric sqr(cython.numeric x):
-    return x*x
-    
-
-ctypedef enum ObjTypeId: ROVER_T_ID, POI_T_ID
-ctypedef void (*Evaluate)(RoverDomain, int)
-
 cdef class RoverDomain:
-    cdef public Py_ssize_t n_rovers
-    cdef public Py_ssize_t n_pois
-    cdef public Py_ssize_t n_steps
-    cdef public Py_ssize_t n_req
-    cdef public Py_ssize_t n_obs_sections
-    cdef public double min_dist
-    cdef public Py_ssize_t step_id
-    cdef public bool done
-    cdef public double setup_size
-    cdef public double interaction_dist
-    cdef public bool reorients
-    cdef public bool discounts_eval
-    cdef public double[:, :] init_rover_positions
-    cdef public double[:, :] init_rover_orientations
-    cdef public double[:, :]rover_positions
-    cdef public double[:, :, :] rover_position_histories
-    cdef public double[:, :] rover_orientations
-    cdef public double[:] poi_values
-    cdef public double[:, :] poi_positions
-    cdef public object update_rewards
-    
-    # Define module level temporary array manager for fast creation of short-lived
-    # c++ arrays.
-    # Note that the use of buffers make the a single instance of
-    # the rover domain not thread-safe. Multiple instances can be on different
-    # threads though
-    cdef vector[double] def_buf
-    cdef vector[double]* buf 
-    
-    # Some return values are stored for performance reasons
-    cdef public double[:, :, :] rover_observations
-    cdef public double[:] rover_rewards
-    
-    
     def __cinit__(self):
         self.n_rovers = 1
         self.n_pois = 1
@@ -79,7 +20,7 @@ cdef class RoverDomain:
         self.interaction_dist = 4.
         self.n_obs_sections = 4
         self.reorients = False
-        self.discounts_eval = False
+        self.discounts_poi_eval = False
         
         # Set positions to zero lets rover domain generate self for you
         self.init_rover_positions = None
@@ -93,9 +34,12 @@ cdef class RoverDomain:
         self.rover_observations = None
         self.rover_rewards = None
         
-        # Initialize Temp Array Buffer and address it
-        self.def_buf = vector[double](0)
-        self.buf = address(self.def_buf)
+        # Initialize Temp Vectors 
+        self.sqr_dists_to_poi.resize(self.n_rovers)
+        self.sqr_dists_to_poi_unsorted.resize(self.n_rovers)
+        self.poi_evals.resize(self.n_pois)
+        self.actual_x_hist.resize(self.n_steps + 1)
+        self.actual_y_hist.resize(self.n_steps + 1)
         
         # Use default reward update
         self.update_rewards = self.update_rewards_step_global_eval
@@ -111,7 +55,11 @@ cdef class RoverDomain:
         # automatic initialization 
         if self.init_rover_positions is None:
             self.init_rover_positions = 0.5 * self.setup_size * np.ones(
-                (self.n_rovers, 2))  
+                (self.n_rovers, 2))  \
+                + np.random.uniform(
+                    -0.1*self.setup_size, 
+                    0.1*self.setup_size,
+                    (self.n_rovers, 2))
         if self.init_rover_orientations is None:
             rand_angles = np.random.uniform(-np.pi, np.pi, self.n_rovers)
             self.init_rover_orientations = np.vstack((np.cos(rand_angles),
@@ -192,7 +140,7 @@ cdef class RoverDomain:
         self.n_steps = self.step_id
         self.done = True
 
-    cpdef step(self, double[:, :] actions):
+    cpdef tuple step(self, double[:, :] actions):
         """
         Slightly slower than step_n0_ret in cython
         
@@ -266,30 +214,35 @@ cdef class RoverDomain:
         self.update_observations()
       
     cpdef double calc_step_eval_from_poi(self, Py_ssize_t poi_id):
-        
-        cdef double[:] sqr_dists_to_poi = np.zeros(self.n_rovers)
+        self.sqr_dists_to_poi.resize(self.n_rovers)
         cdef double displ_x, displ_y, sqr_dist_sum
-        cdef Py_ssize_t rover_id, near_rover_id
+        cdef Py_ssize_t rover_id, near_rover_id, n_close_rovers
         
-        
+        # Coupling requirement is impossible to satisfy
+        if self.n_req > self.n_rovers:
+            return 0.
+            
         # Get the rover square distances to POIs.
         for rover_id in range(self.n_rovers):
             displ_x = (self.rover_positions[rover_id, 0]
                 - self.poi_positions[poi_id, 0])
             displ_y = (self.rover_positions[rover_id, 1]
                 - self.poi_positions[poi_id, 1])
-            sqr_dists_to_poi[rover_id] = displ_x*displ_x + displ_y*displ_y
+            self.sqr_dists_to_poi[rover_id] = displ_x*displ_x + displ_y*displ_y
             
         
-               
+        
         # Sort (n_req) closest rovers for evaluation.
         # Sqr_dists_to_poi is no longer in rover order!
-        np.sort(sqr_dists_to_poi)
-            
-        
+        partial_sort(
+            self.sqr_dists_to_poi.begin(), 
+            self.sqr_dists_to_poi.begin()
+            + min(self.n_req, <Py_ssize_t>(self.sqr_dists_to_poi.size())), 
+            self.sqr_dists_to_poi.end())
+
         # Is there (n_req) rovers observing? Only need to check the (n_req)th
         # closest rover.
-        if (sqr_dists_to_poi[self.n_req-1] > 
+        if (self.sqr_dists_to_poi[self.n_req-1] > 
                 self.interaction_dist * self.interaction_dist):
             # Not close enough?, then there is no reward for this POI
             return 0.
@@ -297,21 +250,25 @@ cdef class RoverDomain:
         
         # Close enough! Continue evaluation.
         
-        if self.discounts_eval:
+        if self.discounts_poi_eval:
             sqr_dist_sum = 0.
             # Get sum sqr distance of nearest rovers.
             for near_rover_id in range(self.n_req):
-                sqr_dist_sum += sqr_dists_to_poi[near_rover_id]
+                sqr_dist_sum += self.sqr_dists_to_poi[near_rover_id]
             return self.poi_values[poi_id] / max(self.min_dist, sqr_dist_sum)
         # Do not discount POI evaluation
         else:
             return self.poi_values[poi_id]    
 
     cpdef void update_local_step_reward_from_poi(self, Py_ssize_t poi_id):
-        cdef double[:] sqr_dists_to_poi = np.zeros(self.n_rovers)
-        cdef double[:] sqr_dists_to_poi_unsorted = np.zeros(self.n_rovers)
+        self.sqr_dists_to_poi.resize(self.n_rovers)
+        self.sqr_dists_to_poi_unsorted.resize(self.n_rovers)
         cdef double displ_x, displ_y, sqr_dist_sum, l_reward
         cdef Py_ssize_t rover_id, near_rover_id
+        
+        # Coupling requirement is impossible to satisfy
+        if self.n_req > self.n_rovers:
+            return 
         
         # Get the rover square distances to POIs.
         for rover_id in range(self.n_rovers):
@@ -319,28 +276,33 @@ cdef class RoverDomain:
                 - self.poi_positions[poi_id, 0])
             displ_y = (self.rover_positions[rover_id, 1]
                 - self.poi_positions[poi_id, 1])
-            sqr_dists_to_poi[rover_id] = displ_x*displ_x + displ_y*displ_y
-            sqr_dists_to_poi_unsorted[rover_id] = sqr_dists_to_poi[rover_id]
+            self.sqr_dists_to_poi[rover_id] = displ_x*displ_x + displ_y*displ_y
+            self.sqr_dists_to_poi_unsorted[rover_id]\
+                = self.sqr_dists_to_poi[rover_id]
             
                
                
         # Sort (n_req) closest rovers for evaluation
         # Sqr_dists_to_poi is no longer in rover order!
-        np.sort(sqr_dists_to_poi)
+        partial_sort(
+            self.sqr_dists_to_poi.begin(), 
+            self.sqr_dists_to_poi.begin()
+            + min(self.n_req, <Py_ssize_t>(self.sqr_dists_to_poi.size())), 
+            self.sqr_dists_to_poi.end())
             
         
         # Is there (n_req) rovers observing? Only need to check the (n_req)th
         # closest rover
-        if (sqr_dists_to_poi[self.n_req-1] > 
+        if (self.sqr_dists_to_poi[self.n_req-1] > 
                 self.interaction_dist * self.interaction_dist):
             # Not close enough?, then there is no reward for this POI
             return 
 
-        if self.discounts_eval:
+        if self.discounts_poi_eval:
             sqr_dist_sum = 0.
             # Get sum sqr distance of nearest rovers
             for near_rover_id in range(self.n_req):
-                sqr_dist_sum += sqr_dists_to_poi[near_rover_id]
+                sqr_dist_sum += self.sqr_dists_to_poi[near_rover_id]
             l_reward = self.poi_values[poi_id] / max(self.min_dist,
                 sqr_dist_sum)
         # Do not discount POI evaluation
@@ -350,10 +312,10 @@ cdef class RoverDomain:
         #Yes? Continue evaluation
         for rover_id in range(self.n_rovers):
             for closest_rover_id in range(self.n_req):
-                if sqr_dists_to_poi[closest_rover_id] == (
-                        sqr_dists_to_poi_unsorted[rover_id]):
+                if self.sqr_dists_to_poi[closest_rover_id] == (
+                        self.sqr_dists_to_poi_unsorted[rover_id]):
                     self.rover_rewards[rover_id] += l_reward
-                    sqr_dists_to_poi[closest_rover_id] = -1.
+                    self.sqr_dists_to_poi[closest_rover_id] = -1.
 
     cpdef double calc_step_global_eval(self):
         cdef double eval
@@ -391,7 +353,7 @@ cdef class RoverDomain:
 
     cpdef double calc_traj_global_eval(self):
         cdef Py_ssize_t step_id, poi_id
-        cdef double[:] poi_evals = np.zeros(self.n_pois)
+        self.poi_evals.resize(self.n_pois)
         cdef double eval
         
         # Only evaluate trajectories at the end
@@ -402,7 +364,7 @@ cdef class RoverDomain:
         eval = 0.
         
         for poi_id in range(self.n_pois):
-            poi_evals[poi_id] = 0.
+            self.poi_evals[poi_id] = 0.
         
         
         # Get evaluation for poi, for each step, storing the max
@@ -413,18 +375,18 @@ cdef class RoverDomain:
             
             # Keep best step eval for each poi
             for poi_id in range(self.n_pois):
-                poi_evals[poi_id] = max(poi_evals[poi_id],
+                self.poi_evals[poi_id] = max(self.poi_evals[poi_id],
                     self.calc_step_eval_from_poi(poi_id))
         
         # Set evaluation to the sum of all POI-specific evaluations
         for poi_id in range(self.n_pois):
-            eval += poi_evals[poi_id]
+            eval += self.poi_evals[poi_id]
         
         return eval       
 
     cpdef double calc_traj_cfact_global_eval(self, Py_ssize_t rover_id):
-        cdef double[:] actual_x_hist = np.zeros(self.n_steps + 1)
-        cdef double[:] actual_y_hist = np.zeros(self.n_steps + 1)
+        self.actual_x_hist.resize(self.n_steps + 1)
+        self.actual_y_hist.resize(self.n_steps + 1)
         cdef double  far, eval
         cdef Py_ssize_t step_id
 
@@ -437,9 +399,9 @@ cdef class RoverDomain:
         
         for step_id in range(self.n_steps+1):
             # Store actual positions for later reassignment
-            actual_x_hist[step_id] = \
+            self.actual_x_hist[step_id] = \
                 self.rover_position_histories[step_id, rover_id, 0]
-            actual_y_hist[step_id] = \
+            self.actual_y_hist[step_id] = \
                 self.rover_position_histories[step_id, rover_id, 1]
             
             # Move rover artificially
@@ -452,9 +414,9 @@ cdef class RoverDomain:
         for step_id in range(self.n_steps+1):
             # Move rover back
             self.rover_position_histories[step_id, rover_id, 0] = \
-                actual_x_hist[step_id]
+                self.actual_x_hist[step_id]
             self.rover_position_histories[step_id, rover_id, 1] = \
-                actual_y_hist[step_id]
+                self.actual_y_hist[step_id]
                 
         return eval
 
@@ -462,8 +424,8 @@ cdef class RoverDomain:
         ObjTypeId obj_type_id, double other_x, double other_y, double val):
             
             cdef double gf_displ_x, gf_displ_y, displ_x, displ_y, 
-            cdef double rf_displ_x, rf_displ_y, dist, angle,  sec_id_temp
-            cdef Py_ssize_t sec_id
+            cdef double rf_displ_x, rf_displ_y, dist, angle
+            cdef Py_ssize_t sec_id, max_sec_id
             
             # Get global (gf) frame displacement
             gf_displ_x = (other_x - self.rover_positions[rover_id, 0])
@@ -499,15 +461,14 @@ cdef class RoverDomain:
             angle = cmath.atan2(displ_y, displ_x) 
             
             #  Get intermediate Section Index by discretizing angle
-            sec_id_temp = cmath.floor(
+            sec_id = <Py_ssize_t>cmath.floor(
                 (angle + cmath.pi)
                 / (2 * cmath.pi) 
                 * self.n_obs_sections)
                 
-            # Clip and convert to get Section id
-            sec_id = <Py_ssize_t>min(max(0, sec_id_temp), self.n_obs_sections-1)
+            # Clip for safety
+            sec_id = min(max(0, sec_id), self.n_obs_sections - 1)
                 
-            
             self.rover_observations[rover_id,<Py_ssize_t>obj_type_id,sec_id] +=(
                 val/(dist*dist))
         
