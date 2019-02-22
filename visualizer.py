@@ -4,6 +4,7 @@
 import pygame
 import numpy as np
 import time
+import math
 from parameters import Parameters as p
 
 pygame.font.init()  # you have to call this at the start, if you want to use this module
@@ -24,7 +25,7 @@ def generate_color_array(num_colors): #generates num random colors
 
 
 def visualize(rd, episode_reward):
-    scale_factor = 30  # Scaling factor for images
+    scale_factor = 25  # Scaling factor for images
     width = 32  # robot icon widths
     x_map = p.x_dim + 10  # Slightly larger so POI are not cut off
     y_map = p.y_dim + 10
@@ -35,16 +36,41 @@ def visualize(rd, episode_reward):
     robot_image = pygame.image.load('./robot.png')
     background = pygame.image.load('./background.png')
     greenflag = pygame.image.load('./greenflag.png')
+    redflag = pygame.image.load('./redflag.png')
     color_array = generate_color_array(p.num_rovers * p.num_types)
     pygame.font.init() 
     myfont = pygame.font.SysFont('Comic Sans MS', 30)
+    poi_status = [False for _ in range(p.num_pois)]
     
     for tstep in range(p.num_steps):
         draw(game_display, background, image_adjust, image_adjust)
         for poi_id in range(p.num_pois):  # Draw POI and POI values
             poi_x = int(rd.poi_pos[poi_id, 0] * scale_factor-width) + image_adjust
             poi_y = int(rd.poi_pos[poi_id, 1] * scale_factor-width) + image_adjust
-            draw(game_display, greenflag, poi_x, poi_y)
+
+            types_in_range = []; observer_count = 0
+            for rover_id in range(p.num_types*p.num_rovers):
+                x_dist = rd.poi_pos[poi_id, 0] - rd.rover_path[tstep, rover_id, 0]
+                y_dist = rd.poi_pos[poi_id, 1] - rd.rover_path[tstep, rover_id, 1]
+                rover_type = rd.rover_path[tstep, rover_id, 2]
+                dist = math.sqrt((x_dist**2) + (y_dist**2))
+
+                if p.team_types == "heterogeneous" and dist <= p.activation_dist:
+                    types_in_range.append(rover_type)
+                elif p.team_types == "homogeneous" and dist <= p.activation_dist:
+                    observer_count += 1
+
+            if p.team_types == "heterogeneous":
+                for t in range(p.num_types):
+                    if t in types_in_range:
+                        observer_count += 1
+
+            if observer_count >= p.coupling:
+                poi_status[poi_id] = True
+            if poi_status[poi_id]:
+                draw(game_display, greenflag, poi_x, poi_y)  # POI observed
+            else:
+                draw(game_display, redflag, poi_x, poi_y)  # POI not observed
             textsurface = myfont.render(str(rd.poi_value[poi_id]), False, (0, 0, 0))
             target_x = int(rd.poi_pos[poi_id, 0]*scale_factor-scale_factor/3) + image_adjust
             target_y = int(rd.poi_pos[poi_id, 1]*scale_factor-width) + image_adjust
