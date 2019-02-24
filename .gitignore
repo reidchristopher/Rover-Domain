@@ -142,3 +142,4 @@ venv.bak/
 code/
 config/
 rover_domain.cpp
+/log/
