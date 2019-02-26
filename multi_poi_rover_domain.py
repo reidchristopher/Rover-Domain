@@ -11,12 +11,12 @@ class SequentialPOIRD(rover_domain.RoverDomain):
 
     def __init__(self):
         super(SequentialPOIRD, self).__init__()
-        self.poi_types = [2, 1, 0]
+        self.poi_types = [0, 1, 2, 3, 4, 5]
         self.n_pois = len(self.poi_types)
 
         # store the sequence as a graph, with each type pointing to the immediate parent(s) which must be satisfied
         # for it to be counted as a score.
-        self.sequence = {0: None, 1: [0], 2: [1]}
+        self.sequence = {0: None, 1: [0], 2: [1], 3: [0], 4: [3], 5: [4, 2]}
 
         # POI visited is a dictionary which keeps track of which types have been visited
         self.poi_visited = {}
@@ -69,6 +69,13 @@ class SequentialPOIRD(rover_domain.RoverDomain):
                 # print("Distance to {} : {}".format(np.array(poi), np.linalg.norm(np.array(rover) - np.array(poi))))
                 if np.linalg.norm(np.array(rover) - np.array(poi)) < self.interaction_dist:
                     self.mark_POI_observed(self.poi_types[i])
+
+    def easy_sequential_score(self):
+        """
+        The global reward based on how far into the POI observation graph you get
+        :return: Global reward based on graph completion
+        """
+        return sum([1 for x in self.poi_visited.values() if x])
 
     def sequential_score(self):
         """

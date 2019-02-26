@@ -62,9 +62,9 @@ cdef class RoverDomain:
     
     
     def __cinit__(self):
-        self.n_rovers = 1
-        self.n_pois = 3
-        self.n_steps = 100
+        self.n_rovers = 7
+        self.n_pois = 6
+        self.n_steps = 50
         
         self.n_req = 1
         self.min_dist = 1.
@@ -77,7 +77,7 @@ cdef class RoverDomain:
         self.setup_size = 10.
         self.interaction_dist = 1.
         self.n_obs_sections = 4
-        self.reorients = False
+        self.reorients = True
         self.discounts_eval = False
 
         self.init_rover_positions = None

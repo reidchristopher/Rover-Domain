@@ -8,7 +8,10 @@ import random
 
 
 def policy_A(state):
-    direction = int(np.argmax(state[4:8]))
+    try:
+        direction = int(np.argmax(state[4:8]))
+    except ValueError:
+        return [0.0, 0.0]
     if direction == 0:
         return [-0.7, -0.7]
     elif direction == 1:
@@ -20,7 +23,10 @@ def policy_A(state):
 
 
 def policy_B(state):
-    direction = np.argmax(state[8:12])
+    try:
+        direction = np.argmax(state[8:12])
+    except ValueError:
+        return [0.0, 0.0]
     if direction == 0:
         return [-0.7, -0.7]
     elif direction == 1:
@@ -32,7 +38,41 @@ def policy_B(state):
 
 
 def policy_C(state):
-    direction = np.argmax(state[12:16])
+    try:
+        direction = np.argmax(state[12:16])
+    except ValueError:
+        return [0.0, 0.0]
+
+    if direction == 0:
+        return [-0.7, -0.7]
+    elif direction == 1:
+        return [0.7, -0.7]
+    elif direction == 2:
+        return [0.7, 0.7]
+    elif direction == 3:
+        return [-0.7, 0.7]
+
+def policy_D(state):
+    try:
+        direction = np.argmax(state[16:20])
+    except ValueError:
+        return [0.0, 0.0]
+
+    if direction == 0:
+        return [-0.7, -0.7]
+    elif direction == 1:
+        return [0.7, -0.7]
+    elif direction == 2:
+        return [0.7, 0.7]
+    elif direction == 3:
+        return [-0.7, 0.7]
+
+def policy_E(state):
+    try:
+        direction = np.argmax(state[20:24])
+    except ValueError:
+        return [0.0, 0.0]
+
     if direction == 0:
         return [-0.7, -0.7]
     elif direction == 1:
@@ -43,6 +83,21 @@ def policy_C(state):
         return [-0.7, 0.7]
 
 
+def policy_F(state):
+    try:
+        direction = np.argmax(state[24:28])
+    except ValueError:
+        return [0.0, 0.0]
+
+    if direction == 0:
+        return [-0.7, -0.7]
+    elif direction == 1:
+        return [0.7, -0.7]
+    elif direction == 2:
+        return [0.7, 0.7]
+    elif direction == 3:
+        return [-0.7, 0.7]
+
 def evaluate_policy(policies):
     """
     Creates a new world, evaluates set of policies p on the world.
@@ -50,7 +105,7 @@ def evaluate_policy(policies):
     :return: Rewards for each agent
     """
     rd = multi_poi_rover_domain.SequentialPOIRD()
-    rd.poi_positions = np.array([[0, 10], [8, 10], [16, 10]], dtype="double")
+    rd.poi_positions = np.array([[0, 20], [18, 20], [10, 20]], dtype="double")
     done = False
     state = rd.rover_observations
     if not done:
@@ -79,7 +134,8 @@ def evaluate_policy_heirarchy(policies):
     :return: Score of the team
     """
     rd = multi_poi_rover_domain.SequentialPOIRD()
-    rd.poi_positions = np.array([[0, 10], [8, 10], [16, 10]], dtype="double")
+    # rd.poi_positions = np.array([[0, 20], [18, 20], [10, 20], [24, 20]], dtype="double")
+    rd.poi_positions = np.array([[0, 20], [18, 20], [10, 20], [24, 20], [32, 20], [40, 20]], dtype="double")
     done = False
     state = rd.rover_observations
 
@@ -104,17 +160,23 @@ def evaluate_policy_heirarchy(policies):
                     a = policy_B(s.flatten())
                 elif selection == 2:
                     a = policy_C(s.flatten())
+                elif selection == 3:
+                    a = policy_D(s.flatten())
+                elif selection == 4:
+                    a = policy_E(s.flatten())
+                elif selection == 5:
+                    a = policy_F(s.flatten())
                 actions.append(a)
         actions = np.array(actions, dtype="double")
         # print(actions)
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    return [rd.sequential_score()]*len(policies)
+    return [rd.easy_sequential_score()]*len(policies)
 
 
 class Agent:
-    def __init__(self, input_l, middle_l, out_l, pool_size=20):
+    def __init__(self, input_l, middle_l, out_l, pool_size=10):
         self.policy_pool = []
         self.cum_rewards = [0]*pool_size
         for _ in range(pool_size):
@@ -129,25 +191,27 @@ def test_G():
     Tests a set of agents learning direct control actions only on G
     :return: None
     """
-    pool = multiprocessing.Pool(1)
+    pool = multiprocessing.Pool()
     agents = []
     best_performance = []
-    for _ in range(1):
-        agents.append(Agent(19, 32, 2))
+    num_agents = 3
+    agent_pool_size = 5
+    for _ in range(num_agents):
+        agents.append(Agent(19, 32, 2, agent_pool_size))
 
     with torch.set_grad_enabled(False):
-        for gen in range(10000):
+        for gen in range(1000):
             teams = []
             for _ in agents:
-                teams.append(list(range(20)))
+                teams.append(list(range(agent_pool_size)))
                 random.shuffle(teams[-1])
             teams = np.array(teams)
             teams = teams.transpose()
             policy_teams = []
             for t in teams:
-                p = [agents[0].policy_pool[t[0]]]#,
-                     # agents[1].policy_pool[t[1]],
-                     # agents[2].policy_pool[t[2]]]
+                p = []
+                for i in range(num_agents):
+                    p.append(agents[i].policy_pool[t[i]])
                 policy_teams.append(p)
 
             team_performances = pool.map(evaluate_policy, policy_teams)
@@ -155,7 +219,7 @@ def test_G():
             for i, t in enumerate(teams):
                 for a in range(len(agents)):
                     agents[a].cum_rewards[t[a]] += team_performances[i][a]
-            print("Gen {} best team: ".format(gen), max(team_performances))
+            print("Gen {} top 5 avg team: {} best team: {}".format(gen, np.average(team_performances[:5], axis=0), max(team_performances)))
             best_performance.append(max(team_performances)[0])
 
             # Rank and update each agent population every 10 generations
@@ -173,8 +237,9 @@ def test_G():
                         a.policy_pool[r] = MLP.Policy(19, 32, 2)
                     # zero out the score again
                     a.reset()
-    best_performance = pd.DataFrame(best_performance)
-    best_performance.to_pickle("./G_multi-reward_best.pkl")
+    return best_performance
+    # best_performance = pd.DataFrame(best_performance)
+    # best_performance.to_pickle("./G_multi-reward_best.pkl")
 
 
 def test_heirarchy():
@@ -185,22 +250,26 @@ def test_heirarchy():
     pool = multiprocessing.Pool()
     agents = []
     best_performance = []
-    for _ in range(1):
-        agents.append(Agent(19, 32, 3))
+    num_agents = 7
+    agent_pool_size = 5
+    actions = 6
+    state_size = 34
+    for _ in range(num_agents):
+        agents.append(Agent(state_size, 32, actions, agent_pool_size))
 
     with torch.set_grad_enabled(False):
-        for gen in range(10000):
+        for gen in range(1000):
             teams = []
             for _ in agents:
-                teams.append(list(range(20)))
+                teams.append(list(range(agent_pool_size)))
                 random.shuffle(teams[-1])
             teams = np.array(teams)
             teams = teams.transpose()
             policy_teams = []
             for t in teams:
-                p = [agents[0].policy_pool[t[0]]]#,
-                     #agents[1].policy_pool[t[1]],
-                     #agents[2].policy_pool[t[2]]]
+                p = []
+                for i in range(num_agents):
+                    p.append(agents[i].policy_pool[t[i]])
                 policy_teams.append(p)
 
             team_performances = pool.map(evaluate_policy_heirarchy, policy_teams)
@@ -208,7 +277,7 @@ def test_heirarchy():
             for i, t in enumerate(teams):
                 for a in range(len(agents)):
                     agents[a].cum_rewards[t[a]] += team_performances[i][a]
-            print("Gen {} best team: ".format(gen), max(team_performances))
+            print("Gen {} top 5 avg team: {} best team: {}".format(gen, np.average(team_performances[:5], axis=0), max(team_performances)))
             best_performance.append(max(team_performances)[0])
 
             # Rank and update each agent population
@@ -217,21 +286,30 @@ def test_heirarchy():
                     # Gets the keys for policy sorted by highest cumulative score first
                     results = sorted(zip(list(range(len(a.policy_pool))), a.cum_rewards), key=lambda x:x[1], reverse=True)
                     results = results[0]
-                    for r in results[10:20]:
-                        copy_state_dict = a.policy_pool[random.choice(results[:10])].state_dict()
+                    for r in results[5:10]:
+                        copy_state_dict = a.policy_pool[random.choice(results[:5])].state_dict()
                         a.policy_pool[r].load_state_dict(copy_state_dict)
                         a.policy_pool[r].mutate()
-                    for r in results[18:]:
+                    for r in results[10:]:
                         # Inject random policies into a.policy_pool
-                        a.policy_pool[r] = MLP.Policy(19, 32, 3)
+                        a.policy_pool[r] = MLP.Policy(state_size, 32, actions)
                     # zero out the score again
                     a.reset()
-    best_performance = pd.DataFrame(best_performance)
-    best_performance.to_pickle("./heirarchy_multi-reward_best.pkl")
-
-
+    # best_performance = pd.DataFrame(best_performance)
+    return best_performance
 
 
 if __name__ == '__main__':
     # test_G()
-    test_heirarchy()
+    key = "hierarchy/looping_six_poi/seven_agent"
+#     performance = []
+#     for i in range(10):
+#         performance.append(test_G())
+#     best_performance = pd.DataFrame(performance)
+#     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
+#
+    performance = []
+    for i in range(5):
+        performance.append(test_heirarchy())
+    best_performance = pd.DataFrame(performance)
+    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="hierarchy/"+key)
