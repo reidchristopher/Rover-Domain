@@ -9,14 +9,24 @@ class SequentialPOIRD(rover_domain.RoverDomain):
     sequential relationship for how each POI can be observed.
     """
 
-    def __init__(self):
-        super(SequentialPOIRD, self).__init__()
-        self.poi_types = [0, 1, 2, 3, 4, 5]
-        self.n_pois = len(self.poi_types)
+    def __init__(self, num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs):
+        """
+        Sets up the Sequential POI observation world
+        :param num_rovers: number of rovers (passed to parent)
+        :param num_steps: number of timesteps in the world (passed to parent)
+        :param num_poi: number of POI (used internally, and passed to parent)
+        :param poi_types: List, the type of each poi in the world. Must specify a type for all POI
+        :param poi_sequence: Dict, Graph sequence dictionary showing which parents each type has in the overall problem.
+        :param kwargs: Extra kwargs (passed to parent)
+        """
+        self.poi_types = poi_types
+        self.n_pois = num_poi
+        if len(poi_types) != num_poi:
+            raise ValueError("Must specify POI type for ALL POI (length does not match num_poi)")
 
         # store the sequence as a graph, with each type pointing to the immediate parent(s) which must be satisfied
         # for it to be counted as a score.
-        self.sequence = {0: None, 1: [0], 2: [1], 3: [0], 4: [3], 5: [4, 2]}
+        self.sequence = poi_sequence
 
         # POI visited is a dictionary which keeps track of which types have been visited
         self.poi_visited = {}
@@ -157,7 +167,7 @@ if __name__ == '__main__':
     random.seed(0)
     np.random.seed(0)
 
-    rd = SequentialPOIRD()
+    # rd = SequentialPOIRD(,
     # rd.reset()
     # print(rd.poi_visited)
     # print("Score: ", rd.sequential_score())

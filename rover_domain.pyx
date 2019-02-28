@@ -61,13 +61,22 @@ cdef class RoverDomain:
     cdef public double[:] rover_rewards
     
     
-    def __cinit__(self):
-        self.n_rovers = 7
-        self.n_pois = 6
-        self.n_steps = 50
+    def __cinit__(self, int number_rovers, int number_poi, int n_steps, *args, **kwargs):
+        """
+        Sets up the rover domain
+        :param number_rovers: number of rovers
+        :param number_poi: number of POI
+        :param n_steps: number of timesteps in the world
+        :param n_req: number of agents to make an observation
+        :param min_dist: minimum distance between the agent and a POI to "count" for observing
+        :return:
+        """
+        self.n_rovers = number_rovers
+        self.n_pois = number_poi
+        self.n_steps = n_steps
         
         self.n_req = 1
-        self.min_dist = 1.
+        self.min_dist = 1.0
         self.step_id = 0
         
         # Done is set to true to prevent stepping the sim forward 
