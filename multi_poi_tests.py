@@ -60,7 +60,7 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    return [rd.sequential_score()]*len(policies)
+    return [rd.easy_sequential_score()]*len(policies)
 
 
 def evaluate_policy_hierarchy(policies, poi_positions, num_rovers, num_steps, num_poi,
@@ -348,7 +348,7 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
             # Updates the sequence map
             rd.update_sequence_visits()
         # Update Q tables
-        rewards = [rd.sequential_score()]*len(agents)
+        rewards = [rd.easy_sequential_score()]*len(agents)
         best_performance.append(rewards[0])
         if iteration%100 == 0:
             print("Iteration: {}, Score: {}".format(iteration, rewards))
@@ -365,15 +365,13 @@ if __name__ == '__main__':
     poi_types = [0, 1, 2]
     poi_sequence = {0: None, 1: [0], 2: [1]}
 
-    key = "basic_test"
+    key = "easy_reward_test"
     trials = 10
-    """
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
-    """
 
     # Can perform these tests in parallel
     performance = []
@@ -382,7 +380,7 @@ if __name__ == '__main__':
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
-    best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
+    # best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
 
     # test_G()
 #
