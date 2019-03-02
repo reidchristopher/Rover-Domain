@@ -348,10 +348,11 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
             rd.update_sequence_visits()
         # Update Q tables
         rewards = [rd.sequential_score()]*len(agents)
+        best_performance.append(rewards[0])
         print("iteration: {}, Score: {}".format(iteration, rewards))
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
-
+    return best_performance
 
 
 if __name__ == '__main__':
@@ -364,17 +365,20 @@ if __name__ == '__main__':
 
     key = "basic_test"
     trials = 10
+    """
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
+    """
 
     performance = []
     for i in range(trials):
         performance.append(test_q_learn_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
+    best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
 
     # test_G()
 #
