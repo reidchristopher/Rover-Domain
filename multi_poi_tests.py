@@ -5,6 +5,7 @@ import learning.MLP as MLP
 import multiprocessing
 import torch
 import random
+import qlearner
 
 
 def manual_poi_optimization(state):
@@ -43,7 +44,7 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
     rd.poi_positions = poi_positions
     done = False
     state = rd.rover_observations
-    if not done:
+    while not done:
         actions = []
         for i, p in enumerate(policies):
             s = np.array(state[i])
@@ -113,7 +114,51 @@ def evaluate_policy_hierarchy(policies, poi_positions, num_rovers, num_steps, nu
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    return [rd.easy_sequential_score()]*len(policies)
+    return [rd.sequential_score()]*len(policies)
+
+
+class HierarchyAgent:
+    def __init__(self, num_actions):
+        self.learner = qlearner.QLearner(num_actions=num_actions)
+        self.state_hist = []
+        self.action_hist = []
+
+    def select_action(self, state, eps=0.0):
+        """
+        Given state, return the best action to take
+        Selects epsilon greedy if eps is non-zero
+
+        :param state:
+        :param eps:
+        :return: Selected action
+        """
+        self.state_hist.append(state)
+        self.learner.epsilon = eps
+        self.learner.checkState(state)
+        action = self.learner.selectAction(state)
+        self.action_hist.append(action)
+        return action
+
+    def update_policy(self, reward):
+        """
+        Updates the Q learner parameters based on the
+        :param reward:
+        :return: None
+        """
+        # Assemble SASR tuples
+        SASR = []
+        for i, s in enumerate(self.state_hist[:-1]):
+            s_prime = self.state_hist[i+1]
+            a = self.action_hist[i]
+            # Use a linear decay in the reward signal
+            r = reward*(i/len(self.state_hist))
+            SASR.append((s, a, s_prime, r))
+        # Learn based on the tuples, starting from highest reward
+        for s, a, s_prime, r in reversed(SASR):
+            self.learner.updateQValue(s, a, s_prime, r)
+        # Reset history
+        self.state_hist = []
+        self.action_hist = []
 
 
 class Agent:
@@ -148,7 +193,7 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
         agents.append(Agent(19, 32, 2, agent_pool_size))
 
     with torch.set_grad_enabled(False):
-        for gen in range(1000):
+        for gen in range(10000):
             teams = []
             for _ in agents:
                 teams.append(list(range(agent_pool_size)))
@@ -215,7 +260,7 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
         agents.append(Agent(state_size, 32, actions, agent_pool_size))
 
     with torch.set_grad_enabled(False):
-        for gen in range(1000):
+        for gen in range(10000):
             teams = []
             for _ in agents:
                 teams.append(list(range(agent_pool_size)))
@@ -257,6 +302,58 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
                     a.reset()
     return best_performance
 
+def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
+    agents = []
+    best_performance = []
+    agent_pool_size = 5
+    actions = 6
+    state_size = 19
+    eps = 0.9
+
+    for _ in range(num_rovers):
+        agents.append(HierarchyAgent(len(poi_sequence)))
+
+    for iteration in range(10000):
+        rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
+        eps = eps*0.999
+        rd.poi_positions = poi_positions
+        done = False
+        state = rd.rover_observations
+        while not done:
+            actions = []
+            for i, a in enumerate(agents):
+                s = np.array(state[i])
+                s = s.flatten()
+                visited = []
+                for key in sorted(rd.poi_visited):
+                    visited.append(int(rd.poi_visited[key]))
+
+                selection = a.select_action(str(visited), eps)
+                if selection == 0:
+                    move = manual_poi_optimization(s.flatten()[4:8])
+                elif selection == 1:
+                    move = manual_poi_optimization(s.flatten()[8:12])
+                elif selection == 2:
+                    move = manual_poi_optimization(s.flatten()[12:16])
+                elif selection == 3:
+                    move = manual_poi_optimization(s.flatten()[16:20])
+                elif selection == 4:
+                    move = manual_poi_optimization(s.flatten()[20:24])
+                elif selection == 5:
+                    move = manual_poi_optimization(s.flatten()[24:28])
+                actions.append(move)
+            actions = np.array(actions, dtype="double")
+            state, reward, done, _ = rd.step(actions)
+
+            # Updates the sequence map
+            rd.update_sequence_visits()
+        # Update Q tables
+        rewards = [rd.sequential_score()]*len(agents)
+        print("iteration: {}, Score: {}".format(iteration, rewards))
+        for i, a in enumerate(agents):
+            a.update_policy(rewards[i])
+
+
 
 if __name__ == '__main__':
     poi_positions = np.array([[0, 20], [10, 20], [20, 20]], dtype="double")
@@ -265,17 +362,29 @@ if __name__ == '__main__':
     num_steps = 50
     poi_types = [0, 1, 2]
     poi_sequence = {0: None, 1: [0], 2: [1]}
+    h = HierarchyAgent(len(poi_sequence))
+    test_q_learn_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)
+
+    key = "basic_test"
+    trials = 10
+    performance = []
+    for i in range(trials):
+        performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
+    best_performance = pd.DataFrame(performance)
+    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
+
+    performance = []
+    for i in range(trials):
+        performance.append(test_q_learn_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
+    best_performance = pd.DataFrame(performance)
+    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
 
     # test_G()
-    key = "hierarchy/looping_six_poi/seven_agent"
-#     performance = []
-#     for i in range(10):
-#         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
-#     best_performance = pd.DataFrame(performance)
-#     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
 #
+    """
     performance = []
     for i in range(5):
         performance.append(test_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     performance = pd.DataFrame(performance)
     performance.to_hdf("./hierarchy-multi-reward_best.h5", key="hierarchy/"+key)
+    """
