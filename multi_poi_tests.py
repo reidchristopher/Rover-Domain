@@ -205,10 +205,9 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
                 p = []
                 for i in range(num_agents):
                     p.append(agents[i].policy_pool[t[i]])
-                p.extend([poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, kwargs])
-                policy_teams.append(p)
+                policy_teams.append((p, poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence))
 
-            team_performances = pool.map(evaluate_policy, policy_teams)
+            team_performances = pool.starmap(evaluate_policy, policy_teams)
             # Update the cumulative performance of each policy
             for i, t in enumerate(teams):
                 for a in range(len(agents)):
