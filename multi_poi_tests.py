@@ -312,6 +312,7 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
     for _ in range(num_rovers):
         agents.append(HierarchyAgent(len(poi_sequence)))
 
+    print("Begining test...")
     for iteration in range(10000):
         rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
         eps = eps*0.999
@@ -349,7 +350,8 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
         # Update Q tables
         rewards = [rd.sequential_score()]*len(agents)
         best_performance.append(rewards[0])
-        print("iteration: {}, Score: {}".format(iteration, rewards))
+        if iteration%100 == 0:
+            print("Iteration: {}, Score: {}".format(iteration, rewards))
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
     return best_performance
@@ -373,9 +375,11 @@ if __name__ == '__main__':
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
     """
 
+    # Can perform these tests in parallel
     performance = []
-    for i in range(trials):
-        performance.append(test_q_learn_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
+    args = [(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)]*trials
+    pool = multiprocessing.Pool()
+    performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
     best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
