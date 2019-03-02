@@ -362,8 +362,6 @@ if __name__ == '__main__':
     num_steps = 50
     poi_types = [0, 1, 2]
     poi_sequence = {0: None, 1: [0], 2: [1]}
-    h = HierarchyAgent(len(poi_sequence))
-    test_q_learn_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)
 
     key = "basic_test"
     trials = 10
