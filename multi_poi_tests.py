@@ -60,7 +60,8 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    return [rd.easy_sequential_score()]*len(policies)
+    pd.DataFrame(rd.rover_position_histories).to_csv("G-rover-trajectory.csv")
+    return [rd.sequential_score()]*len(policies)
 
 
 def evaluate_policy_hierarchy(policies, poi_positions, num_rovers, num_steps, num_poi,
@@ -301,6 +302,7 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
                     a.reset()
     return best_performance
 
+
 def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     agents = []
     best_performance = []
@@ -348,24 +350,26 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
             # Updates the sequence map
             rd.update_sequence_visits()
         # Update Q tables
-        rewards = [rd.easy_sequential_score()]*len(agents)
+        rewards = [rd.sequential_score()]*len(agents)
         best_performance.append(rewards[0])
         if iteration%100 == 0:
             print("Iteration: {}, Score: {}".format(iteration, rewards))
+            pd.DataFrame(rd.rover_position_histories).to_csv("Q-agent-traj-iter-{}.csv".format(iteration))
+
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
     return best_performance
 
 
 if __name__ == '__main__':
-    poi_positions = np.array([[0, 20], [10, 20], [20, 20]], dtype="double")
+    poi_positions = np.array([[-10, 20], [20, 20], [20, -10], [-10, -10]], dtype="double")
     num_poi = len(poi_positions)
-    num_agents = 5
-    num_steps = 50
-    poi_types = [0, 1, 2]
+    num_agents = 2
+    num_steps = 100
+    poi_types = [0, 0, 1, 2]
     poi_sequence = {0: None, 1: [0], 2: [1]}
 
-    key = "easy_reward_test"
+    key = "two_agent/square_poi_arrangement_test"
     trials = 10
     performance = []
     for i in range(trials):
