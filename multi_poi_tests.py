@@ -6,6 +6,7 @@ import multiprocessing
 import torch
 import random
 import qlearner
+import pickle
 
 
 def manual_poi_optimization(state):
@@ -60,7 +61,8 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    pd.DataFrame(rd.rover_position_histories).to_csv("G-rover-trajectory.csv")
+    with open("G-paths.npy", 'wb') as f:
+        np.save(f, np.array(rd.rover_position_histories))
     return [rd.sequential_score()]*len(policies)
 
 
@@ -354,7 +356,8 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
         best_performance.append(rewards[0])
         if iteration%100 == 0:
             print("Iteration: {}, Score: {}".format(iteration, rewards))
-            pd.DataFrame(rd.rover_position_histories).to_csv("Q-agent-traj-iter-{}.csv".format(iteration))
+            with open("Q-paths.npy", 'wb') as f:
+                np.save(f, np.array(rd.rover_position_histories))
 
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
