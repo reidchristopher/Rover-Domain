@@ -6,6 +6,8 @@ import multiprocessing
 import torch
 import random
 import qlearner
+import sys
+import yaml
 import pickle
 
 
@@ -365,20 +367,28 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
 
 
 if __name__ == '__main__':
-    poi_positions = np.array([[-10, 20], [20, 20], [20, -10], [-10, -10]], dtype="double")
-    num_poi = len(poi_positions)
-    num_agents = 2
-    num_steps = 100
-    poi_types = [0, 0, 1, 2]
-    poi_sequence = {0: None, 1: [0], 2: [1]}
+    with open(sys.argv[1], 'r') as stream:
+        try:
+            config_data = yaml.load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
 
-    key = "two_agent/square_poi_arrangement_test"
-    trials = 10
+    poi_positions = np.array(config_data["POI Positions"], dtype="double")
+    num_poi = len(poi_positions)
+    num_agents = config_data["Number of Agents"]
+    num_steps = config_data["Number of Timesteps"]
+    poi_types = config_data["POI Types"]
+    if config_data["Shuffle POI"]:
+        random.shuffle(poi_types)
+    poi_sequence = config_data["POI Sequence"]
+
+    key = config_data["Experiment Name"] + "/" + str(num_agents) + "_agents"
+    trials = config_data["Trials"]
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
-    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
+    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/G")
 
     # Can perform these tests in parallel
     performance = []
@@ -386,15 +396,5 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool()
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
-    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
-    # best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
+    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/q")
 
-    # test_G()
-#
-    """
-    performance = []
-    for i in range(5):
-        performance.append(test_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
-    performance = pd.DataFrame(performance)
-    performance.to_hdf("./hierarchy-multi-reward_best.h5", key="hierarchy/"+key)
-    """

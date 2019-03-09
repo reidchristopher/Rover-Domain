@@ -1,0 +1,10 @@
+POI Positions: [[-10, 20], [20, 20], [20, -10], [-10, -10]]
+Number of Agents: 2
+Number of Timesteps: 100
+POI Types: [0, 0, 1, 2]
+Shuffle POI: false
+POI Sequence: {0: None, 1: [0], 2: [1]}
+
+Trials: 10
+Experiment Name: "Square POI Test"
+H5 Output File: "Hierarchy_vs_G_Experiments.h5"
