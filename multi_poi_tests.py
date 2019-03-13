@@ -382,8 +382,9 @@ if __name__ == '__main__':
         random.shuffle(poi_types)
     poi_sequence = config_data["POI Sequence"]
 
-    key = config_data["Experiment Name"] + "/" + str(num_agents) + "_agents"
+    key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
     trials = config_data["Trials"]
+
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
