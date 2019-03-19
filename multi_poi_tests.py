@@ -306,6 +306,47 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
                     a.reset()
     return best_performance
 
+def evaluate_q_hierarchy_performance(rover_domain, agents):
+    """
+    Tests the Q hierarchcy with no exploratory action
+    :param rover_domain: rover domain instance to test the agents in
+    :param agents: list of agent policies in the world
+    :return: Float, Score of the team on the world problem
+    """
+    done = False
+    state = rover_domain.rover_observations
+    while not done:
+        actions = []
+        for i, a in enumerate(agents):
+            s = np.array(state[i])
+            s = s.flatten()
+            visited = []
+            for key in sorted(rover_domain.poi_visited):
+                visited.append(int(rover_domain.poi_visited[key]))
+
+            # Doing a test, ie not taking exploratory action and only evaluating the performance based on
+            # the policy, select the action with epsilon=0
+            selection = a.select_action(str(visited))
+            if selection == 0:
+                move = manual_poi_optimization(s.flatten()[4:8])
+            elif selection == 1:
+                move = manual_poi_optimization(s.flatten()[8:12])
+            elif selection == 2:
+                move = manual_poi_optimization(s.flatten()[12:16])
+            elif selection == 3:
+                move = manual_poi_optimization(s.flatten()[16:20])
+            elif selection == 4:
+                move = manual_poi_optimization(s.flatten()[20:24])
+            elif selection == 5:
+                move = manual_poi_optimization(s.flatten()[24:28])
+            actions.append(move)
+        actions = np.array(actions, dtype="double")
+        state, reward, done, _ = rover_domain.step(actions)
+
+        # Updates the sequence map
+        rover_domain.update_sequence_visits()
+    # Get score out
+    return rover_domain.sequential_score()
 
 def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     agents = []
@@ -353,14 +394,16 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
 
             # Updates the sequence map
             rd.update_sequence_visits()
-        # Update Q tables
+        # Log information
         rewards = [rd.sequential_score()]*len(agents)
-        best_performance.append(rewards[0])
+        test_rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
+        best_performance.append(evaluate_q_hierarchy_performance(test_rd, agents))
         if iteration%100 == 0:
             print("Iteration: {}, Score: {}".format(iteration, rewards))
             with open("Q-paths.npy", 'wb') as f:
                 np.save(f, np.array(rd.rover_position_histories))
 
+        # Update Q tables
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
     return best_performance
