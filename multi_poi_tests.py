@@ -10,6 +10,7 @@ import sys
 import yaml
 import pickle
 
+POOL_LIMIT = 10
 
 def manual_poi_optimization(state):
     """
@@ -189,7 +190,7 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
     :param poi_sequence: dict, the graph sequence of POI parents
     :return: List, The score of the best performing team
     """
-    pool = multiprocessing.Pool()
+    pool = multiprocessing.Pool(POOL_LIMIT)
     agents = []
     best_performance = []
     num_agents = num_rovers
@@ -253,7 +254,7 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
     :param poi_sequence: dict, the graph sequence of POI parents
     :return: List, The score of the best performing team
     """
-    pool = multiprocessing.Pool()
+    pool = multiprocessing.Pool(POOL_LIMIT)
     agents = []
     best_performance = []
     num_agents = num_rovers
@@ -437,7 +438,7 @@ if __name__ == '__main__':
     # Can perform these tests in parallel
     performance = []
     args = [(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)]*trials
-    pool = multiprocessing.Pool()
+    pool = multiprocessing.Pool(POOL_LIMIT)
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf(config_data["H5 Output File"], key=key+"/q")
