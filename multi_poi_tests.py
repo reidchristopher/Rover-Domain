@@ -6,6 +6,9 @@ import multiprocessing
 import torch
 import random
 import qlearner
+import sys
+import yaml
+import pickle
 
 
 def manual_poi_optimization(state):
@@ -60,7 +63,9 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
         state, reward, done, _ = rd.step(actions)
         # Updates the sequence map
         rd.update_sequence_visits()
-    return [rd.easy_sequential_score()]*len(policies)
+    with open("G-paths.npy", 'wb') as f:
+        np.save(f, np.array(rd.rover_position_histories))
+    return [rd.sequential_score()]*len(policies)
 
 
 def evaluate_policy_hierarchy(policies, poi_positions, num_rovers, num_steps, num_poi,
@@ -301,6 +306,7 @@ def test_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi
                     a.reset()
     return best_performance
 
+
 def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     agents = []
     best_performance = []
@@ -348,30 +354,42 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
             # Updates the sequence map
             rd.update_sequence_visits()
         # Update Q tables
-        rewards = [rd.easy_sequential_score()]*len(agents)
+        rewards = [rd.sequential_score()]*len(agents)
         best_performance.append(rewards[0])
         if iteration%100 == 0:
             print("Iteration: {}, Score: {}".format(iteration, rewards))
+            with open("Q-paths.npy", 'wb') as f:
+                np.save(f, np.array(rd.rover_position_histories))
+
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
     return best_performance
 
 
 if __name__ == '__main__':
-    poi_positions = np.array([[0, 20], [10, 20], [20, 20]], dtype="double")
-    num_poi = len(poi_positions)
-    num_agents = 5
-    num_steps = 50
-    poi_types = [0, 1, 2]
-    poi_sequence = {0: None, 1: [0], 2: [1]}
+    with open(sys.argv[1], 'r') as stream:
+        try:
+            config_data = yaml.load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
 
-    key = "easy_reward_test"
-    trials = 10
+    poi_positions = np.array(config_data["POI Positions"], dtype="double")
+    num_poi = len(poi_positions)
+    num_agents = config_data["Number of Agents"]
+    num_steps = config_data["Number of Timesteps"]
+    poi_types = config_data["POI Types"]
+    if config_data["Shuffle POI"]:
+        random.shuffle(poi_types)
+    poi_sequence = config_data["POI Sequence"]
+
+    key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
+    trials = config_data["Trials"]
+
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
-    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="G/"+key)
+    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/G")
 
     # Can perform these tests in parallel
     performance = []
@@ -379,15 +397,5 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool()
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
-    best_performance.to_hdf("./hierarchy-multi-reward_best.h5", key="q/"+key)
-    # best_performance.to_hdf("./q-results-multi-reward_best.h5", key="q/"+key)
+    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/q")
 
-    # test_G()
-#
-    """
-    performance = []
-    for i in range(5):
-        performance.append(test_hierarchy(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
-    performance = pd.DataFrame(performance)
-    performance.to_hdf("./hierarchy-multi-reward_best.h5", key="hierarchy/"+key)
-    """
