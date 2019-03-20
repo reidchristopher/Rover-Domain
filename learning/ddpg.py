@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.autograd import Variable
 import torch.nn.functional as F
-import utils as utils
+# import utils as utils
 
 MSELoss = nn.MSELoss()
 
@@ -205,3 +205,30 @@ class DDPG(object):
             vals = torch.cat((vals, net.critic_forward(to_tensor(states))), 0)
 
         return torch.max(vals, 0)[0].unsqueeze(0)
+
+if __name__ == '__main__':
+    import numpy as np
+    import multi_poi_rover_domain as mprd
+    from collections import namedtuple
+    Batch = namedtuple('Batch', 'state next_state action reward')
+
+    agent = DDPG(0.99, 0.001, 32, 4, np.zeros(2))
+
+    for iteration in range(10000):
+        rd = mprd.SequentialPOIRD(1, 1, 50, [0], {0: None})
+        rd.poi_positions = [(10, 10)]
+        done = False
+        state = rd.rover_observations
+        prev_state = state[4:]
+        while not done:
+            action = agent.select_action(state[4:])
+            state, reward, done, _ = rd.step(action)
+            rd.update_sequence_visits()
+            reward = rd.sequential_score()
+            batch = Batch(prev_state, state, action, reward)
+            agent.update_parameters(batch)
+        print("Iteration:", iteration, "Final Reward:", reward)
+
+
+
+
