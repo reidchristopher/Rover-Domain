@@ -411,6 +411,7 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
             a.update_policy(rewards[i])
         # Log information for the last path
         if iteration == 9999:
+            print('Gathering and logging agent and POI positions...')
             # Combine the poi positions and poi types into a single tuple
             data = [list(a[0])+[a[1]] for a in zip(poi_positions, poi_types)]
             pois = pd.DataFrame(columns=["X", 'Y', 'Type'], data=data)
@@ -465,5 +466,5 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool(POOL_LIMIT)
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)
-    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/q")
+    best_performance.to_hdf(config_data["H5 Output File"], key=key+"/q/Performance")
 
