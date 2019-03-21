@@ -349,12 +349,10 @@ def evaluate_q_hierarchy_performance(rover_domain, agents):
     # Get score out
     return rover_domain.sequential_score()
 
+
 def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     agents = []
     best_performance = []
-    agent_pool_size = 5
-    actions = 6
-    state_size = 19
     eps = 0.9
 
     for _ in range(num_rovers):
@@ -367,16 +365,20 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
         rd.poi_positions = poi_positions
         done = False
         state = rd.rover_observations
+        if iteration == 9999:
+            choices = []
         while not done:
             actions = []
             for i, a in enumerate(agents):
                 s = np.array(state[i])
                 s = s.flatten()
                 visited = []
-                for key in sorted(rd.poi_visited):
-                    visited.append(int(rd.poi_visited[key]))
+                for poi_id in sorted(rd.poi_visited):
+                    visited.append(int(rd.poi_visited[poi_id]))
 
                 selection = a.select_action(str(visited), eps)
+                if iteration == 9999:
+                    choices.append(selection)
                 if selection == 0:
                     move = manual_poi_optimization(s.flatten()[4:8])
                 elif selection == 1:
@@ -407,6 +409,25 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
         # Update Q tables
         for i, a in enumerate(agents):
             a.update_policy(rewards[i])
+        # Log information for the last path
+        if iteration == 9999:
+            # Combine the poi positions and poi types into a single tuple
+            data = [list(a[0])+[a[1]] for a in zip(poi_positions, poi_types)]
+            pois = pd.DataFrame(columns=["X", 'Y', 'Type'], data=data)
+            index = pd.MultiIndex.from_product((range(num_steps+1), ["Agent {}".format(i+1) for i in range(num_rovers)]),
+                                               names=["Timestep", "ID"])
+            data = []
+            positions = np.asarray(rd.rover_position_histories)
+            for t in positions:
+                for a in t:
+                    data.append(a)
+            agent_paths = pd.DataFrame(index=index, data=data, columns=["X", 'Y'])
+            # Add a NaN to the end of the choices, since the agent actions are n+1, and it's fucky at the moment...
+            choices.extend([np.nan]*num_rovers)
+            agent_paths["Choices"] = choices
+
+            pois.to_hdf(config_data["H5 Output File"], key=key+"/q/POI_Positions")
+            agent_paths.to_hdf(config_data["H5 Output File"], key=key+"/q/Agent_Positions")
     return best_performance
 
 
@@ -429,15 +450,18 @@ if __name__ == '__main__':
     key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
     trials = config_data["Trials"]
 
+    """
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf(config_data["H5 Output File"], key=key+"/G")
+    """
 
     # Can perform these tests in parallel
     performance = []
     args = [(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)]*trials
+
     pool = multiprocessing.Pool(POOL_LIMIT)
     performance = pool.starmap(test_q_learn_hierarchy, args)
     best_performance = pd.DataFrame(performance)

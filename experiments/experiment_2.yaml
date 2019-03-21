@@ -17,6 +17,6 @@ POI Types: [0, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 2]
 Shuffle POI: false
 POI Sequence: {0: null, 1: [0], 2: [1]}
 
-Trials: 10
+Trials: 1
 Experiment Name: "Many_POI_Test"
 H5 Output File: "Hierarchy_vs_G_Experiments.h5"
