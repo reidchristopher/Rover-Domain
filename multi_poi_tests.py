@@ -195,8 +195,9 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
     best_performance = []
     num_agents = num_rovers
     agent_pool_size = 5
+    state_size = 4 + (4*len(poi_sequence)) + len(poi_sequence)
     for _ in range(num_agents):
-        agents.append(Agent(19, 32, 2, agent_pool_size))
+        agents.append(Agent(state_size, 32, 2, agent_pool_size))
 
     with torch.set_grad_enabled(False):
         for gen in range(10000):
@@ -236,7 +237,7 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
                         a.policy_pool[r].mutate()
                     for r in results[18:]:
                         # Inject random policies into a.policy_pool
-                        a.policy_pool[r] = MLP.Policy(19, 32, 2)
+                        a.policy_pool[r] = MLP.Policy(state_size, 32, 2)
                     # zero out the score again
                     a.reset()
     return best_performance
@@ -451,13 +452,11 @@ if __name__ == '__main__':
     key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
     trials = config_data["Trials"]
 
-    """
     performance = []
     for i in range(trials):
         performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf(config_data["H5 Output File"], key=key+"/G")
-    """
 
     # Can perform these tests in parallel
     performance = []
