@@ -1,0 +1,12 @@
+POI Positions: [[-10, 20],
+                [20, 20],
+]
+Number of Agents: 1
+Number of Timesteps: 100
+POI Types: [0, 1]
+Shuffle POI: false
+POI Sequence: {0: null, 1: [0]}
+
+Trials: 1
+Experiment Name: "Simple_POI_Test"
+H5 Output File: "Hierarchy_vs_G_Experiments.h5"
