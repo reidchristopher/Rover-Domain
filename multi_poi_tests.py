@@ -32,7 +32,7 @@ def manual_poi_optimization(state):
         return [-0.7, 0.7]
 
 
-def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
+def evaluate_policy(policies, poi_positions, agent_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     """
     Creates a new world, evaluates set of policies p on the world.
     :param policies: the set of policies (agents) to try the world
@@ -46,6 +46,7 @@ def evaluate_policy(policies, poi_positions, num_rovers, num_steps, num_poi, poi
     """
     rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
     rd.poi_positions = poi_positions
+    rd.rover_positions = agent_positions
     done = False
     state = rd.rover_observations
     while not done:
@@ -178,10 +179,11 @@ class Agent:
         self.cum_rewards = [0]*len(self.cum_rewards)
 
 
-def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
+def test_G(poi_positions, agent_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
     """
     Tests a set of agents learning direct control actions only on G
 
+    :param agent_positions:
     :param poi_positions: np array, double, the positions of the POI's
     :param num_rovers: integer, number of rovers in the problem
     :param num_steps: integer, number of timesteps in the simulation
@@ -212,7 +214,7 @@ def test_G(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequenc
                 p = []
                 for i in range(num_agents):
                     p.append(agents[i].policy_pool[t[i]])
-                policy_teams.append((p, poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence))
+                policy_teams.append((p, poi_positions, agent_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence))
 
             team_performances = pool.starmap(evaluate_policy, policy_teams)
             # Update the cumulative performance of each policy
@@ -351,7 +353,8 @@ def evaluate_q_hierarchy_performance(rover_domain, agents):
     return rover_domain.sequential_score()
 
 
-def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence, **kwargs):
+def test_q_learn_hierarchy(poi_positions, agent_positions, num_rovers, num_steps, num_poi, poi_types, poi_sequence,
+                           **kwargs):
     agents = []
     best_performance = []
     eps = 0.9
@@ -364,6 +367,7 @@ def test_q_learn_hierarchy(poi_positions, num_rovers, num_steps, num_poi, poi_ty
         rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
         eps = eps*0.999
         rd.poi_positions = poi_positions
+        rd.rover_positions = agent_positions
         done = False
         state = rd.rover_observations
         if iteration == 9999:
@@ -441,6 +445,7 @@ if __name__ == '__main__':
             print(exc)
 
     poi_positions = np.array(config_data["POI Positions"], dtype="double")
+    agent_positions = np.array(config_data["Agent Positions"], dtype="double")
     num_poi = len(poi_positions)
     num_agents = config_data["Number of Agents"]
     num_steps = config_data["Number of Timesteps"]
@@ -452,15 +457,16 @@ if __name__ == '__main__':
     key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
     trials = config_data["Trials"]
 
+
     performance = []
     for i in range(trials):
-        performance.append(test_G(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
+        performance.append(test_G(poi_positions, agent_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence))
     best_performance = pd.DataFrame(performance)
     best_performance.to_hdf(config_data["H5 Output File"], key=key+"/G")
 
     # Can perform these tests in parallel
     performance = []
-    args = [(poi_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)]*trials
+    args = [(poi_positions, agent_positions, num_agents, num_steps, num_poi, poi_types, poi_sequence)]*trials
 
     pool = multiprocessing.Pool(POOL_LIMIT)
     performance = pool.starmap(test_q_learn_hierarchy, args)

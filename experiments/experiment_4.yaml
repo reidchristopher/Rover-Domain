@@ -1,0 +1,13 @@
+POI Positions: [[5, 10],
+                [20, 10],
+]
+Number of Agents: 2
+Agent Positions: [[15, 5], [25, 0]]
+Number of Timesteps: 15
+POI Types: [0, 1]
+Shuffle POI: false
+POI Sequence: {0: null, 1: [0]}
+
+Trials: 1
+Experiment Name: "Collaboration_Test"
+H5 Output File: "Hierarchy_vs_G_Experiments.h5"
