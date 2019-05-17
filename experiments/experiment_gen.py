@@ -23,23 +23,23 @@ class YamlGenerator:
         self.add_parameter("Shuffle POI", bool)
         self.add_parameter("POI Sequence", dict)
         self.add_parameter("Number of Agents", int)
-        self.add_parameter("Agent Positions", list)
+        # self.add_parameter("Agent Positions", list)
         self.add_parameter("Number of Timesteps", int)
         self.add_parameter("Trials", int)
         self.add_parameter("H5 Output File", str)
         self.add_parameter("Experiment Name", str)
-        self.add_parameter("POI Positions", list)
+        # self.add_parameter("POI Positions", list)
 
         self.options = {"POI Types": [0, 1],
                         "Shuffle POI": False,
                         "POI Sequence": {0: None, 1: [0]},
                         "Number of Agents": 2,
-                        "Agent Positions": [[15, 5], [25, 0]],
+                        # "Agent Positions": [[15, 5], [25, 0]],
                         "Number of Timesteps": 15,
                         "Trials": 1,
                         "H5 Output File": "test.h5",
                         "Experiment Name": "write_file_test",
-                        "POI Positions": [[5, 10], [20, 10]]
+                        # "POI Positions": [[5, 10], [20, 10]]
                         }
 
     def add_parameter(self, name, default_type):

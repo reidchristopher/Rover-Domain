@@ -1,14 +1,15 @@
-import multi_poi_rover_domain
+import multiprocessing
+import random
+import sys
+
 import numpy as np
 import pandas as pd
-import learning.MLP as MLP
-import multiprocessing
-import torch
-import random
 import qlearner
-import sys
+import torch
 import yaml
-import pickle
+
+import learning.MLP as MLP
+import multi_poi_rover_domain
 
 POOL_LIMIT = 10
 
@@ -45,8 +46,10 @@ def evaluate_policy(policies, poi_positions, agent_positions, num_rovers, num_st
     :return: Rewards for each agent
     """
     rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
-    rd.poi_positions = poi_positions
-    rd.rover_positions = agent_positions
+    if poi_positions is not None:
+        rd.poi_positions = poi_positions
+    if agent_positions is not None:
+        rd.rover_positions = agent_positions
     done = False
     state = rd.rover_observations
     while not done:
@@ -366,8 +369,10 @@ def test_q_learn_hierarchy(poi_positions, agent_positions, num_rovers, num_steps
     for iteration in range(10000):
         rd = multi_poi_rover_domain.SequentialPOIRD(num_rovers, num_poi, num_steps, poi_types, poi_sequence, **kwargs)
         eps = eps*0.999
-        rd.poi_positions = poi_positions
-        rd.rover_positions = agent_positions
+        if poi_positions is not None:
+            rd.poi_positions = poi_positions
+        if agent_positions is not None:
+            rd.rover_positions = agent_positions
         done = False
         state = rd.rover_observations
         if iteration == 9999:
@@ -444,9 +449,18 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             print(exc)
 
-    poi_positions = np.array(config_data["POI Positions"], dtype="double")
-    agent_positions = np.array(config_data["Agent Positions"], dtype="double")
-    num_poi = len(poi_positions)
+    try:
+        poi_positions = np.array(config_data["POI Positions"], dtype="double")
+    except KeyError as e:
+        print("WARN: Using randomly set POI positions")
+        poi_positions = None
+    try:
+        agent_positions = np.array(config_data["Agent Positions"], dtype="double")
+    except KeyError as e:
+        print("WARN: using randomly set agent positions")
+        agent_positions = None
+
+    num_poi = config_data["Number of POI"]
     num_agents = config_data["Number of Agents"]
     num_steps = config_data["Number of Timesteps"]
     poi_types = config_data["POI Types"]
@@ -456,7 +470,6 @@ if __name__ == '__main__':
 
     key = config_data["Experiment Name"] + "/" + "agents_" + str(num_agents)
     trials = config_data["Trials"]
-
 
     performance = []
     for i in range(trials):
