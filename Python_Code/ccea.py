@@ -1,5 +1,5 @@
 import numpy as np
-from parameters import Parameters as p
+from AADI_RoverDomain.parameters import Parameters as p
 import random
 
 
@@ -8,7 +8,7 @@ class Ccea:
     def __init__(self):
         self.mut_prob = p.mutation_rate
         self.epsilon = p.epsilon
-        self.n_populations = p.num_rovers * p.num_types  # One population for each rover
+        self.n_populations = p.num_rovers  # One population for each rover
         self.population_size = p.pop_size * 2  # Number of policies in each pop
         n_inputs = p.num_inputs
         n_outputs = p.num_outputs
@@ -44,14 +44,18 @@ class Ccea:
 
         for pop_index in range(self.n_populations):
             policy_index = half_pop_length
+            mutate_n = int(p.mutation_rate*self.policy_size)
             while policy_index < self.population_size:
+                # for w in range(mutate_n):
+                #     target = random.randint(0, (self.policy_size - 1))  # Select random weight to mutate
+                #     self.pops[pop_index, policy_index, target] = random.uniform(-1, 1)
                 rnum = random.uniform(0, 1)
                 if rnum <= self.mut_prob:
                     target = random.randint(0, (self.policy_size - 1))  # Select random weight to mutate
                     self.pops[pop_index, policy_index, target] = random.uniform(-1, 1)
                 policy_index += 1
 
-    def epsilon_greedy_select(self):  # Replace the bottom half with parents from top half
+    def epsilon_greedy_select(self):  # Choose K successors
         half_pop_length = int(self.population_size/2)
         for pop_id in range(self.n_populations):
             policy_id = half_pop_length
@@ -61,7 +65,7 @@ class Ccea:
                     for k in range(self.policy_size):
                         self.pops[pop_id, policy_id, k] = self.pops[pop_id, 0, k]  # Best policy
                 else:
-                    parent = random.randint(0, half_pop_length)  # Choose a random parent
+                    parent = random.randint(0, (self.population_size-1))  # Choose a random parent
                     for k in range(self.policy_size):
                         self.pops[pop_id, policy_id, k] = self.pops[pop_id, parent, k]  # Random policy
                 policy_id += 1
@@ -79,3 +83,8 @@ class Ccea:
 
         self.epsilon_greedy_select()  # Select parents for offspring population
         self.mutate()  # Mutate offspring population
+
+    def print_best_policies(self):
+        #print(self.pops[0, 0])
+        print('Fitness: ', self.fitness[0, 0])
+        print('\n')

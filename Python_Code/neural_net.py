@@ -1,11 +1,11 @@
 import numpy as np
-from parameters import Parameters as p
+from AADI_RoverDomain.parameters import Parameters as p
 
 
 class NeuralNetwork:
 
     def __init__(self):
-        self.n_rovers = p.num_rovers * p.num_types
+        self.n_rovers = p.num_rovers
         self.n_inputs = p.num_inputs
         self.n_outputs = p.num_outputs
         self.n_nodes = p.num_nodes  # Number of nodes in hidden layer
@@ -63,7 +63,7 @@ class NeuralNetwork:
             count += 1
 
         for i in range(self.n_outputs):  # Pass through sigmoid
-            self.out_layer[rov_id, i] = self.sigmoid(self.out_layer[rov_id, i]) - 0.5
+            self.out_layer[rov_id, i] = self.tanh(self.out_layer[rov_id, i])
 
     def tanh(self, inp):  # Tanh function as activation function
         tanh = (2/(1 + np.exp(-2*inp)))-1

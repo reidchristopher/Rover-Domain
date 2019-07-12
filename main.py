@@ -1,11 +1,10 @@
-import ccea
-import neural_network
-from parameters import Parameters as p
-from rover_domain_python import RoverDomain
-import homogeneous_rewards as homr
-import heterogeneous_rewards as hetr
+import Python_Code.ccea as ccea
+import Python_Code.neural_net as neural_network
+from AADI_RoverDomain.parameters import Parameters as p
+from AADI_RoverDomain.rover_domain import RoverDomain
+import Python_Code.homogeneous_rewards as homr
 import csv; import os; import sys
-from visualizer import visualize
+from AADI_RoverDomain.visualizer import visualize
 
 
 def save_reward_history(reward_history, file_name):
@@ -19,7 +18,7 @@ def save_reward_history(reward_history, file_name):
 
 def save_world_configuration(rover_positions, poi_positions, poi_vals):
     dir_name = 'Output_Data/'  # Intended directory for output files
-    nrovers = p.num_rovers * p.num_types
+    nrovers = p.num_rovers
 
     if not os.path.exists(dir_name):  # If Data directory does not exist, create it
         os.makedirs(dir_name)
@@ -54,7 +53,7 @@ def save_world_configuration(rover_positions, poi_positions, poi_vals):
 
 def save_rover_path(rover_path):  # Save path rovers take using best policy found
     dir_name = 'Output_Data/'  # Intended directory for output files
-    nrovers = p.num_rovers * p.num_types
+    nrovers = p.num_rovers
 
     rpath_name = os.path.join(dir_name, 'Rover_Paths.txt')
 
@@ -68,92 +67,6 @@ def save_rover_path(rover_path):  # Save path rovers take using best policy foun
         rpath.write('\n')
     rpath.write('\n')
     rpath.close()
-
-
-# HETEROGENEOUS ROVER TEAMS -------------------------------------------------------------------------------------------
-def run_heterogeneous_rovers():
-    cc = ccea.Ccea()
-    nn = neural_network.NeuralNetwork()
-    rd = RoverDomain()
-
-    rtype = p.reward_type
-
-    for srun in range(p.stat_runs):  # Perform statistical runs
-        print("Run: %i" % srun)
-        reward_history = []
-
-        # Reset CCEA, NN, and world for new stat run
-        cc.reset_populations()  # Randomly initialize ccea populations
-        nn.reset_nn()  # Initialize NN architecture
-        rd.reset()  # Re-initialize world
-
-        save_world_configuration(rd.rover_initial_pos, rd.poi_pos, rd.poi_value)
-
-        for gen in range(p.generations):
-            # print("Gen: %i" % gen)
-            cc.select_policy_teams()  # Selects which policies will be grouped into which teams
-            for team_number in range(cc.population_size):  # Each policy in CCEA is tested in teams
-                rd.reset_to_init()  # Resets rovers to initial configuration
-                done = False; rd.istep = 0
-                joint_state = rd.get_joint_state()
-
-                while not done:
-                    for rover_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[rover_id, team_number])  # Select policy from CCEA pop
-                        nn.run_neural_network(joint_state[rover_id], cc.pops[rover_id, policy_id], rover_id)
-                    joint_state, done = rd.step(nn.out_layer)
-
-                # Update fitness of policies using reward information
-                if rtype == 0:
-                    reward = hetr.calc_hetero_global(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward
-                elif rtype == 1:
-                    reward = hetr.calc_hetero_difference(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward[pop_id]
-                elif rtype == 2:
-                    reward = hetr.calc_hetero_dpp(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward[pop_id]
-                elif rtype == 3:
-                    reward = hetr.calc_sdpp(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward[pop_id]
-                else:
-                    sys.exit('Incorrect Reward Type for Heterogeneous Teams')
-
-            cc.down_select()  # Perform down_selection after each policy has been evaluated
-
-            # Testing Phase
-            rd.reset_to_init()  # Reset rovers to initial positions
-            done = False; rd.istep = 0
-            joint_state = rd.get_joint_state()
-            while not done:
-                for rover_id in range(rd.num_agents):
-                    nn.run_neural_network(joint_state[rover_id], cc.pops[rover_id, 0], rover_id)
-                joint_state, done = rd.step(nn.out_layer)
-
-            reward = hetr.calc_hetero_global(rd.rover_path, rd.poi_value, rd.poi_pos)
-            reward_history.append(reward)
-
-            if gen == (p.generations-1):  # Save path at end of final generation
-                save_rover_path(rd.rover_path)
-                if p.visualizer_on:
-                    visualize(rd, reward)
-
-        if rtype == 0:
-            save_reward_history(reward_history, "Global_Reward.csv")
-        if rtype == 1:
-            save_reward_history(reward_history, "Difference_Reward.csv")
-        if rtype == 2:
-            save_reward_history(reward_history, "DPP_Reward.csv")
-        if rtype == 3:
-            save_reward_history(reward_history, 'SDPP_Reward.csv')
 
 
 # HOMOGENEOUS ROVER TEAMS ---------------------------------------------------------------------------------------------
@@ -171,40 +84,44 @@ def run_homogeneous_rovers():
         # Reset CCEA, NN, and world for new stat run
         cc.reset_populations()  # Randomly initialize ccea populations
         nn.reset_nn()  # Initialize NN architecture
-        rd.reset()  # Re-initialize world
+        rd.reset_world()  # Re-initialize world
 
-        save_world_configuration(rd.rover_initial_pos, rd.poi_pos, rd.poi_value)
+        save_world_configuration(rd.rover_initial_pos, rd.poi_pos, rd.poi_values)
 
         for gen in range(p.generations):
             # print("Gen: %i" % gen)
             cc.select_policy_teams()  # Selects which policies will be grouped into which teams
+
             for team_number in range(cc.population_size):  # Each policy in CCEA is tested in teams
                 rd.reset_to_init()  # Resets rovers to initial configuration
+                global_reward = 0.0; global_max = 0.0
 
                 done = False; rd.istep = 0
                 joint_state = rd.get_joint_state()
                 while not done:
                     for rover_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[rover_id, team_number])
+                        policy_id = int(cc.team_selection[rover_id][team_number])
                         nn.run_neural_network(joint_state[rover_id], cc.pops[rover_id, policy_id], rover_id)
-                    joint_state, done = rd.step(nn.out_layer)
+                    joint_state, done, global_reward = rd.step(nn.out_layer)
+
+                    if global_reward > global_max:
+                        global_max = global_reward
 
                 # Update fitness of policies using reward information
                 if rtype == 0:
-                    reward = homr.calc_global(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward
+                    for rover_id in range(rd.num_agents):
+                        policy_id = int(cc.team_selection[rover_id][team_number])
+                        cc.fitness[rover_id, policy_id] = global_max
                 elif rtype == 1:
-                    reward = homr.calc_difference(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward[pop_id]
+                    d_reward = homr.calc_difference(rd.rover_path, rd.poi_values, rd.poi_pos, global_max)
+                    for rover_id in range(p.num_rovers):
+                        policy_id = int(cc.team_selection[rover_id][team_number])
+                        cc.fitness[rover_id, policy_id] = d_reward[rover_id]
                 elif rtype == 2:
-                    reward = homr.calc_dpp(rd.rover_path, rd.poi_value, rd.poi_pos)
-                    for pop_id in range(rd.num_agents):
-                        policy_id = int(cc.team_selection[pop_id, team_number])
-                        cc.fitness[pop_id, policy_id] = reward[pop_id]
+                    dpp_reward = homr.calc_dpp(rd.rover_path, rd.poi_values, rd.poi_pos, global_max)
+                    for rover_id in range(p.num_rovers):
+                        policy_id = int(cc.team_selection[rover_id][team_number])
+                        cc.fitness[rover_id, policy_id] = dpp_reward[rover_id]
                 else:
                     sys.exit('Incorrect Reward Type for Homogeneous Teams')
 
@@ -212,20 +129,23 @@ def run_homogeneous_rovers():
 
             # Testing Phase
             rd.reset_to_init()  # Reset rovers to initial positions
+            global_reward = 0.0; global_max = 0.0
             done = False; rd.istep = 0
             joint_state = rd.get_joint_state()
             while not done:
                 for rover_id in range(rd.num_agents):
                     nn.run_neural_network(joint_state[rover_id], cc.pops[rover_id, 0], rover_id)
-                joint_state, done = rd.step(nn.out_layer)
+                joint_state, done, global_reward = rd.step(nn.out_layer)
 
-            reward = homr.calc_global(rd.rover_path, rd.poi_value, rd.poi_pos)
-            reward_history.append(reward)
+                if global_reward > global_max:
+                    global_max = global_reward
+
+            reward_history.append(global_max)
 
             if gen == (p.generations-1):  # Save path at end of final generation
                 save_rover_path(rd.rover_path)
                 if p.visualizer_on:
-                    visualize(rd, reward)
+                    visualize(rd, global_max)
 
         if rtype == 0:
             save_reward_history(reward_history, "Global_Reward.csv")
@@ -238,8 +158,6 @@ def run_homogeneous_rovers():
 def main():
     if p.team_types == 'homogeneous':
         run_homogeneous_rovers()
-    elif p.team_types == 'heterogeneous':
-        run_heterogeneous_rovers()
     else:
         print('ERROR')
 
