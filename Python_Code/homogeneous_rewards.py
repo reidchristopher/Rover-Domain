@@ -1,7 +1,6 @@
 import numpy as np
 import math
 from AADI_RoverDomain.parameters import Parameters as p
-from Python_Code.suggestions import *
 
 
 # DIFFERENCE REWARDS --------------------------------------------------------------------------------------------------
