@@ -11,22 +11,23 @@ class Parameters:
     """
 
     # Run Parameters
-    stat_runs = 1
-    generations = 1  # Number of generations for CCEA in each stat run
-    visualizer_on = True  # Turn visualizer on or off (TURN OFF FOR MULTIPLE STAT RUNS)
+    stat_runs = 30
+    generations = 1000  # Number of generations for CCEA in each stat run
+    visualizer_on = False  # Turn visualizer on or off (TURN OFF FOR MULTIPLE STAT RUNS)
+    new_world_config = False  # False -> Reuse existing world config, True -> Use new world config
 
     # Domain parameters
     team_types = 'homogeneous'  # Switch between 'homogeneous' and 'heterogeneous' rover domains
-    num_rovers = 12  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
+    num_rovers = 10  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
     coupling = 3  # Number of rovers required to view a POI for credit
     num_pois = 10  # Number of POIs on map
-    num_steps = 30  # Number of steps rovers take each episode
-    min_distance = 0.5  # Minimum distance which may appear in the denominator of credit eval functions
+    num_steps = 20  # Number of steps rovers take each episode
+    min_distance = 1.0  # Minimum distance which may appear in the denominator of credit eval functions
     x_dim = 30  # X-Dimension of the rover map
     y_dim = 30  # Y-Dimension of the rover map
-    min_observation_dist = 4.0  # Minimum distance rovers must be to observe POIs
+    min_observation_dist = 3.0  # Minimum distance rovers must be to observe POIs
     angle_resolution = 90  # Resolution of sensors (determines number of sectors)
-    sensor_model = "closest"  # Should either be "density" or "closest"
+    sensor_model = "summed"  # Should either be "density" or "closest"
 
     # Neural network parameters
     num_inputs = 8
@@ -34,9 +35,13 @@ class Parameters:
     num_outputs = 2
 
     # CCEA parameters
-    mutation_rate = 0.1
-    epsilon = 0.1
-    pop_size = 15
+    mutation_rate = 0.1  # Probability that a member of the offspring population will be mutated
+    percentage_mut = 0.01  # Percentage of bits which get flipped in an individual
+    epsilon = 0.1  # For e-greedy selection in CCEA
+    parent_pop_size = 15
+    offspring_pop_size = 5
+    n_bits = 11  # Number of bits used to express a single weight in binary ccea
+    ccea_type = "normal"  # "normal" or "binary"
 
     # User specific parameters
-    reward_type = "DPP"  # Switch between reward functions
+    reward_type = "DPP"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"

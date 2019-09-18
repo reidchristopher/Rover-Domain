@@ -2,13 +2,17 @@ import numpy as np
 from AADI_RoverDomain.parameters import Parameters as p
 import random
 
+"""
+This CCEA represents policies as binary strings (longer run time than other CCEA)
+"""
 
 class Ccea:
 
     def __init__(self):
         self.total_pop_size = p.parent_pop_size + p.offspring_pop_size  # Number of policies in each pop
         n_inputs = p.num_inputs; n_outputs = p.num_outputs; n_nodes = p.num_nodes
-        self.policy_size = (n_inputs + 1)*n_nodes + (n_nodes + 1) * n_outputs  # Number of weights for NN
+        n_weights = (n_inputs + 1)*n_nodes + (n_nodes + 1) * n_outputs
+        self.policy_size = n_weights*p.n_bits  # Size of binary array representing all NN weights
         self.pops = np.zeros((p.num_rovers, self.total_pop_size, self.policy_size))
         self.parent_pop = np.zeros((p.num_rovers, p.parent_pop_size, self.policy_size))
         self.offspring_pop = np.zeros((p.num_rovers, p.offspring_pop_size, self.policy_size))
@@ -30,12 +34,18 @@ class Ccea:
         for pop_index in range(p.num_rovers):
             for policy_index in range(p.parent_pop_size):
                 for w in range(self.policy_size):
-                    weight = np.random.normal(0, 1)
-                    self.parent_pop[pop_index, policy_index, w] = weight
+                    rnum = random.uniform(0, 1)
+                    if rnum < 0.5:
+                        self.parent_pop[pop_index, policy_index, w] = 0
+                    else:
+                        self.parent_pop[pop_index, policy_index, w] = 1
             for policy_index in range(p.offspring_pop_size):
                 for w in range(self.policy_size):
-                    weight = np.random.normal(0, 1)
-                    self.offspring_pop[pop_index, policy_index, w] = weight
+                    rnum = random.uniform(0, 1)
+                    if rnum < 0.5:
+                        self.offspring_pop[pop_index, policy_index, w] = 0
+                    else:
+                        self.offspring_pop[pop_index, policy_index, w] = 1
 
         self.combine_pops()
 
@@ -72,8 +82,10 @@ class Ccea:
                 if rnum <= p.mutation_rate:
                     for w in range(mutate_n):
                         target = random.randint(0, (self.policy_size - 1))  # Select random weight to mutate
-                        weight = np.random.normal(0, 1)
-                        self.offspring_pop[pop_index, policy_index, target] = weight
+                        if self.offspring_pop[pop_index, policy_index, target] == 0:
+                            self.offspring_pop[pop_index, policy_index, target] = 1
+                        else:
+                            self.offspring_pop[pop_index, policy_index, target] = 0
                 policy_index += 1
 
     def epsilon_greedy_select(self):  # Choose K solutions
