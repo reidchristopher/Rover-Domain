@@ -1,6 +1,4 @@
-This repository contains code for the AADI Lab rover domain. Code is currently implemented in python.
-A primitive rover domain visualizer is implemented alongside the rover domain code, but it is currently a work in progress.
+Test parameters are controlled from parameters.py, and different world configurations can be selected using rover_domain.py and rover_setup.py. Current implementation utilizes a CCEA for training rover neural networks. Alll output files are placed in a directory called Output_Data (this includes world configuraiton files such as rover positions, POI positions, and POI values).
 
-Currently main.py is setup to run the rover domain code using a CCEA to train the Neural Networks.
-
-To run the code use: python3 main.py
+To run rover domain simulation, use command: python3 main.py
+To run visualizer, go to the Visualizer directory and use command: python3 visualizer.py
