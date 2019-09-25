@@ -12,15 +12,16 @@ class Parameters:
 
     # Run Parameters
     stat_runs = 10
-    generations = 1000  # Number of generations for CCEA in each stat run
+    generations = 800  # Number of generations for CCEA in each stat run
     new_world_config = False  # False -> Reuse existing world config, True -> Use new world config
+    reward_type = "DPP"  # Switch between reward functions "Global" "Difference" "DPP"
 
     # Visualizer
     running = False  # True keeps visualizer from closing until you 'X' out of window
 
     # Domain parameters
     team_types = 'homogeneous'  # Switch between 'homogeneous' and 'heterogeneous' rover domains
-    num_rovers = 12  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
+    num_rovers = 10  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
     coupling = 3  # Number of rovers required to view a POI for credit
     num_pois = 10  # Number of POIs on map
     num_steps = 20  # Number of steps rovers take each episode
@@ -40,8 +41,11 @@ class Parameters:
     mutation_rate = 0.1  # Probability that a member of the offspring population will be mutated
     percentage_mut = 0.01  # Percentage of bits which get flipped in an individual
     epsilon = 0.1  # For e-greedy selection in CCEA
-    parent_pop_size = 20
+    parent_pop_size = 15
     offspring_pop_size = 5
 
     # User specific parameters
-    reward_type = "SDPP"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"
+    """
+    Suggestions: high_val, low_val, high_low, value_incentives, partner_proximity, or none
+    """
+    suggestion_type = "none"
