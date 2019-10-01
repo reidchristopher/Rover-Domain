@@ -29,7 +29,7 @@ cdef class NeuralNetwork:
         self.hid_layer = np.zeros((self.n_rovers, self.n_nodes), dtype=np.float64)
         self.out_layer = np.zeros((self.n_rovers, self.n_outputs), dtype=np.float64)
 
-    cdef reset_nn(self):  # Clear current network
+    cpdef reset_nn(self):  # Clear current network
         """
         Clears neural network arrays so that they all contain zeros
         :return: None
@@ -39,7 +39,7 @@ cdef class NeuralNetwork:
         self.hid_layer = np.zeros((self.n_rovers, self.n_nodes), dtype=np.float64)
         self.out_layer = np.zeros((self.n_rovers, self.n_outputs), dtype=np.float64)
 
-    cdef get_inputs(self, state_vec, rov_id):  # Get inputs from state-vector
+    cpdef get_inputs(self, state_vec, rov_id):  # Get inputs from state-vector
         """
         Assign inputs from rover sensors to the input layer of the NN
         :param state_vec: Inputs from rover sensors
@@ -50,7 +50,7 @@ cdef class NeuralNetwork:
         for i in range(self.n_inputs):
             self.in_layer[rov_id, i] = state_vec[i]
 
-    cdef get_weights(self, nn_weights, rov_id):  # Get weights from CCEA population
+    cpdef get_weights(self, nn_weights, rov_id):  # Get weights from CCEA population
         """
         Receive rover NN weights from CCEA
         :param nn_weights:
@@ -62,58 +62,55 @@ cdef class NeuralNetwork:
         for w in range(self.n_weights):
             self.weights[rov_id, w] = nn_weights[w]
 
-    cdef reset_layers(self, rov_id):  # Clear hidden layers and output layers
+    cpdef reset_layers(self, rov_id):  # Clear hidden layers and output layers
         """
         Zeros hidden layer and output layer of NN
         :param rov_id:
         :return: None
         """
-        cdef int i, j
+        cdef int n
 
-        for i in range(self.n_nodes):
-            self.hid_layer[rov_id, i] = 0.0
-        for j in range(self.n_outputs):
-            self.out_layer[rov_id, j] = 0.0
+        for n in range(self.n_nodes):
+            self.hid_layer[rov_id, n] = 0.0
+        for n in range(self.n_outputs):
+            self.out_layer[rov_id, n] = 0.0
 
-    cdef get_outputs(self, rov_id):
+    cpdef get_outputs(self, rov_id):
         """
         Run NN to receive rover action outputs
         :param rov_id:
         :return: None
         """
-        cdef int count, i, j
+        cdef int count, i, n
 
         count = 0  # Keeps count of which weight is being applied
         self.reset_layers(rov_id)
 
-        # for i in range(self.n_inputs):
-        #     self.in_layer[rov_id, i] = self.tanh(self.in_layer[rov_id, i])
-
         for i in range(self.n_inputs):  # Pass inputs to hidden layer
-            for j in range(self.n_nodes):
-                self.hid_layer[rov_id, j] += self.in_layer[rov_id, i] * self.weights[rov_id, count]
+            for n in range(self.n_nodes):
+                self.hid_layer[rov_id, n] += self.in_layer[rov_id, i] * self.weights[rov_id, count]
                 count += 1
 
-        for j in range(self.n_nodes):  # Add Biasing Node
-            self.hid_layer[rov_id, j] += (self.input_bias * self.weights[rov_id, count])
+        for n in range(self.n_nodes):  # Add Biasing Node
+            self.hid_layer[rov_id, n] += (self.input_bias * self.weights[rov_id, count])
             count += 1
 
-        for i in range(self.n_nodes):  # Pass through sigmoid
-            self.hid_layer[rov_id, i] = self.tanh(self.hid_layer[rov_id, i])
+        for n in range(self.n_nodes):  # Pass hidden layer nodes through activation function
+            self.hid_layer[rov_id, n] = self.tanh(self.hid_layer[rov_id, n])
 
         for i in range(self.n_nodes):  # Pass from hidden layer to output layer
-            for j in range(self.n_outputs):
-                self.out_layer[rov_id, j] += self.hid_layer[rov_id, i] * self.weights[rov_id, count]
+            for n in range(self.n_outputs):
+                self.out_layer[rov_id, n] += self.hid_layer[rov_id, i] * self.weights[rov_id, count]
                 count += 1
 
-        for j in range(self.n_outputs):  # Add biasing node
-            self.out_layer[rov_id, j] += (self.hidden_bias * self.weights[rov_id, count])
+        for n in range(self.n_outputs):  # Add biasing node
+            self.out_layer[rov_id, n] += (self.hidden_bias * self.weights[rov_id, count])
             count += 1
 
-        for i in range(self.n_outputs):  # Pass through sigmoid
-            self.out_layer[rov_id, i] = self.tanh(self.out_layer[rov_id, i])
+        for n in range(self.n_outputs):  # Pass output nodes through activation function
+            self.out_layer[rov_id, n] = self.tanh(self.out_layer[rov_id, n])
 
-    cdef tanh(self, double inp):  # Tanh function as activation function
+    cpdef tanh(self, double inp):  # Tanh function as activation function
         """
         NN activation function
         :param inp: Node value in NN (pre-activation function)
@@ -124,7 +121,7 @@ cdef class NeuralNetwork:
         tanh = (2/(1 + np.exp(-2*inp)))-1
         return tanh
 
-    cdef sigmoid(self, double inp):  # Sigmoid function as activation function
+    cpdef sigmoid(self, double inp):  # Sigmoid function as activation function
         """
         NN activation function
         :param inp: Node value in NN (pre-activation function)
@@ -135,7 +132,7 @@ cdef class NeuralNetwork:
         sig = 1/(1 + np.exp(-inp))
         return sig
 
-    cdef run_neural_network(self, state_vec, weight_vec, rover_id):
+    cpdef run_neural_network(self, state_vec, weight_vec, rover_id):
         """
         Run through NN for given rover
         :param rover_input: Inputs from rover sensors
