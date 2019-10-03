@@ -1,5 +1,6 @@
 import sys
 import math
+import random
 import os
 from AADI_RoverDomain.rover_setup import *
 from AADI_RoverDomain.parameters import Parameters as p
@@ -60,6 +61,15 @@ class RoverDomain:
             self.rover_path[self.istep, rover_id, 1] = self.rover_pos[rover_id, 1]
             self.rover_path[self.istep, rover_id, 2] = self.rover_pos[rover_id, 2]
 
+    def random_add_poi(self):
+        """
+        Does not *add* a poi per-se, but instead turns a zero-value POI into a non-zero value
+        :return: None
+        """
+        if random.random() < p.poi_chance:
+            index = random.choice(np.where(self.poi_values == 0))
+            self.poi_values[index] = random.randint(1, 10)
+
     def save_world_configuration(self):
         """
         Saves world configuration to a txt files in a folder called Output_Data
@@ -106,6 +116,7 @@ class RoverDomain:
         :return: none
         """
         self.poi_rewards = np.zeros(p.num_pois)
+        self.poi_values = init_poi_values_txt_file()
         self.rover_pos = self.rover_initial_pos.copy()
         self.rover_path = np.zeros(((p.num_steps + 1), self.num_agents, 3))
         self.istep = 0

@@ -11,10 +11,10 @@ class Parameters:
     """
 
     # Run Parameters
-    stat_runs = 15
-    generations = 800  # Number of generations for CCEA in each stat run
+    stat_runs = 5
+    generations = 1000  # Number of generations for CCEA in each stat run
     new_world_config = False  # False -> Reuse existing world config, True -> Use new world config
-    reward_type = "SDPP"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"
+    reward_type = "Global"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"
 
     # Visualizer
     running = False  # True keeps visualizer from closing until you 'X' out of window
@@ -22,12 +22,12 @@ class Parameters:
     # Domain parameters
     team_types = 'homogeneous'  # Switch between 'homogeneous' and 'heterogeneous' rover domains
     num_rovers = 10  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
-    coupling = 3  # Number of rovers required to view a POI for credit
-    num_pois = 12  # Number of POIs on map
+    coupling = 1  # Number of rovers required to view a POI for credit
+    num_pois = 20  # Number of POIs on map
     num_steps = 20  # Number of steps rovers take each episode
     min_distance = 1.0  # Minimum distance which may appear in the denominator of credit eval functions
-    x_dim = 30  # X-Dimension of the rover map
-    y_dim = 30  # Y-Dimension of the rover map
+    x_dim = 100  # X-Dimension of the rover map
+    y_dim = 100  # Y-Dimension of the rover map
     min_observation_dist = 3.0  # Minimum distance rovers must be to observe POIs
     angle_resolution = 90  # Resolution of sensors (determines number of sectors)
     sensor_model = "summed"  # Should either be "density" or "closest" or "summed"
@@ -52,3 +52,6 @@ class Parameters:
     new_suggestion = "high_val"
     original_suggestion = "none"
     gen_suggestion_switch = False
+
+    # Params added by connor
+    poi_chance = 0.1
