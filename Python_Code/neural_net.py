@@ -1,10 +1,10 @@
 import numpy as np
-from AADI_RoverDomain.parameters import Parameters as p
 
 
 class NeuralNetwork:
 
-    def __init__(self):
+    def __init__(self, p):
+        self.n_rovers = p.num_rovers
         self.n_inputs = p.num_inputs
         self.n_outputs = p.num_outputs
         self.n_nodes = p.num_nodes  # Number of nodes in hidden layer
@@ -21,10 +21,10 @@ class NeuralNetwork:
         Clears neural network arrays so that they all contain zeros
         :return: None
         """
-        self.weights = np.zeros((p.num_rovers, self.n_weights))
-        self.in_layer = np.zeros((p.num_rovers, self.n_inputs))
-        self.hid_layer = np.zeros((p.num_rovers, self.n_nodes))
-        self.out_layer = np.zeros((p.num_rovers, self.n_outputs))
+        self.weights = np.zeros((self.n_rovers, self.n_weights))
+        self.in_layer = np.zeros((self.n_rovers, self.n_inputs))
+        self.hid_layer = np.zeros((self.n_rovers, self.n_nodes))
+        self.out_layer = np.zeros((self.n_rovers, self.n_outputs))
 
     def get_inputs(self, state_vec, rov_id):  # Get inputs from state-vector
         """
