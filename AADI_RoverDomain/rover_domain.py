@@ -61,14 +61,18 @@ class RoverDomain:
             self.rover_path[self.istep, rover_id, 1] = self.rover_pos[rover_id, 1]
             self.rover_path[self.istep, rover_id, 2] = self.rover_pos[rover_id, 2]
 
-    def random_add_poi(self):
+    def random_change_poi(self):
         """
         Does not *add* a poi per-se, but instead turns a zero-value POI into a non-zero value
         :return: None
         """
-        if random.random() < p.poi_chance:
-            index = random.choice(np.where(self.poi_values == 0))
-            self.poi_values[index] = random.randint(1, 10)
+        for index in range(len(self.poi_values)):
+            # Each POI is sampled separately
+            if random.random() < p.poi_chance:
+                if self.poi_values[index] == 0:
+                    self.poi_values[index] = random.randint(1, 10)
+                else:
+                    self.poi_values[index] = 0
 
     def save_world_configuration(self):
         """

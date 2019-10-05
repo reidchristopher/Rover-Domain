@@ -42,7 +42,9 @@ def init_rover_pos_random_concentrated():
     """
     nrovers = p.num_rovers
     rover_positions = np.zeros((nrovers, 3))
-    radius = 4.0; center_x = p.x_dim/2; center_y = p.y_dim/2
+    radius = 4.0
+    center_x = p.x_dim/2
+    center_y = p.y_dim/2
 
     for rov_id in range(p.num_rovers):
         x = random.uniform(0, p.x_dim)  # Rover X-Coordinate

@@ -74,7 +74,7 @@ def run_homogeneous_rovers():
                         policy_id = int(cc.team_selection[rover_id, team_number])
                         nn.run_neural_network(joint_state[rover_id], cc.pops[rover_id, policy_id], rover_id)
                     joint_state, done = rd.step(nn.out_layer)
-                    rd.random_add_poi()  # Added to slowly activate poi over time
+                    rd.random_change_poi()  # Added to slowly activate poi over time
 
                 # Update fitness of policies using reward information
                 global_reward = calc_global(rd.rover_path, rd.poi_values, rd.poi_pos)
