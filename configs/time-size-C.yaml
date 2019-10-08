@@ -4,3 +4,4 @@ x_dim: 100
 y_dim: 100
 num_rovers: 4
 coupling: 1
+poi_chance: 0.0
