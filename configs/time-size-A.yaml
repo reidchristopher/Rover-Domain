@@ -1,0 +1,6 @@
+num_pois: 2
+num_steps: 30
+x_dim: 20
+y_dim: 20
+num_rovers: 4
+coupling: 1
