@@ -152,7 +152,7 @@ def run_visualizer(episode_reward):
                     # draw(game_display, redflag, poi_x, poi_y)  # POI not observed
                     pygame.draw.circle(game_display, (220, 20, 60), (poi_x, poi_y), 10)
                     pygame.draw.circle(game_display, (255, 255, 255), (poi_x, poi_y), 3 * scale_factor, 1)
-                textsurface = myfont.render(str(poi_values[poi_id]), False, (255, 255, 255))
+                textsurface = myfont.render(str(poi_values[poi_id]), False, (0, 0, 0))
                 target_x = int(poi_pos[poi_id, 0]*scale_factor) + image_adjust
                 target_y = int(poi_pos[poi_id, 1]*scale_factor) + image_adjust
                 draw(game_display, textsurface, target_x, target_y)

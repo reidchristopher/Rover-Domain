@@ -6,22 +6,22 @@ class Parameters:
     def __init__(self):
         # Run Parameters
         self.stat_runs = 1
-        self.generations = 100  # Number of generations for CCEA in each stat run
+        self.generations = 1000  # Number of generations for CCEA in each stat run
         self.new_world_config = True  # False -> Reuse existing world config, True -> Use new world config
-        self.reward_type = "Global"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"
+        self.reward_type = "Difference"  # Switch between reward functions "Global" "Difference" "DPP" "SDPP"
 
         # Visualizer
         self.running = False  # True keeps visualizer from closing until you 'X' out of window
 
         # Domain parameters
         self.team_types = 'homogeneous'  # Switch between 'homogeneous' and 'heterogeneous' rover domains
-        self.num_rovers = 10  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
-        self.coupling = 3  # Number of rovers required to view a POI for credit
-        self.num_pois = 6  # Number of POIs on map
-        self.num_steps = 20  # Number of steps rovers take each episode
+        self.num_rovers = 8  # Number of rovers on map (GETS MULTIPLIED BY NUMBER OF TYPES)
+        self.coupling = 1  # Number of rovers required to view a POI for credit
+        self.num_pois = 2 # Number of POIs on map
+        self.num_steps = 200  # Number of steps rovers take each episode
         self.min_distance = 1.0  # Minimum distance which may appear in the denominator of credit eval functions
-        self.x_dim = 30  # X-Dimension of the rover map
-        self.y_dim = 30  # Y-Dimension of the rover map
+        self.x_dim = 100  # X-Dimension of the rover map
+        self.y_dim = 100  # Y-Dimension of the rover map
         self.min_observation_dist = 3.0  # Minimum distance rovers must be to observe POIs
         self.angle_resolution = 90  # Resolution of sensors (determines number of sectors)
         self.sensor_model = "summed"  # Should either be "density" or "closest" or "summed"
@@ -48,6 +48,8 @@ class Parameters:
         self.step_switch_point = 5  # What step should the suggestion type switch at?
         self.gen_suggestion_switch = False  # Switch suggestion types at a specified generation
         self.step_suggestion_switch = False  # Switch suggestion types at a specified rover step
+
+        self.poi_chance = 0.03
 
     def load_yaml(self, filename):
         """

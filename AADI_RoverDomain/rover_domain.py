@@ -1,5 +1,4 @@
 import sys
-import math
 import os
 from AADI_RoverDomain.rover_setup import *
 
@@ -37,6 +36,8 @@ class RoverDomain:
         self.poi_pos = np.zeros((p.num_pois, 2))
         self.poi_values = np.zeros(p.num_pois)
         self.poi_rewards = np.zeros(p.num_pois)
+        self.poi_chance = p.poi_chance
+
 
     def inital_world_setup(self):
         """
@@ -50,7 +51,7 @@ class RoverDomain:
             self.rover_initial_pos = self.rover_pos.copy()  # Track initial setup
 
             # Initialize POI positions and values
-            self.poi_pos = init_poi_pos_circle(self.n_pois, self.world_x, self.world_y)
+            self.poi_pos = init_poi_pos_two_poi(self.n_pois, self.world_x, self.world_y)
             self.poi_values = init_poi_vals_half_and_half(self.n_pois)
             self.save_world_configuration()
         else:
@@ -322,3 +323,16 @@ class RoverDomain:
                 global_reward += self.poi_values[poi_id]
 
         return global_reward
+
+    def random_change_poi(self):
+        """
+        Does not *add* a poi per-se, but instead turns a zero-value POI into a non-zero value
+        :return: None
+        """
+        for index in range(len(self.poi_values)):
+            # Each POI is sampled separately
+            if random.random() < self.poi_chance:
+                if self.poi_values[index] == 0:
+                    self.poi_values[index] = random.randint(1, 10)
+                else:
+                    self.poi_values[index] = 0
