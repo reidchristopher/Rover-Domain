@@ -5,3 +5,4 @@ y_dim: 200
 num_rovers: 4
 coupling: 1
 poi_chance: 0.0
+stat_runs: 5
