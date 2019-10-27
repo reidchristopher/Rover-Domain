@@ -185,14 +185,31 @@ def init_poi_pos_concentric_circles(num_pois, xd, yd):
 def init_poi_pos_two_poi(num_pois, xd, yd):
     """
     Sets two POI on the map, one on the left, one on the right at Y-Dimension/2
+    Modified so there is some noise in the Y-Dimension/2, has the potential to be +/- 5
     :return: poi_positions: np array of size (npoi, 2)
     """
     assert(num_pois == 2)
-
     poi_positions = np.zeros((num_pois, 2))
 
-    poi_positions[0, 0] = 0.0; poi_positions[0, 1] = yd/2
-    poi_positions[1, 0] = (xd-1); poi_positions[1, 1] = yd/2
+    # First POI
+    poi_positions[0, 0] = 0.0
+    if random.random() < 0.5:
+        offset = 5
+        if random.random() < 0.5:
+            offset *= -1
+        poi_positions[0, 1] = yd/2 + offset
+    else:
+        poi_positions[0, 1] = yd/2
+
+    # Second POI
+    poi_positions[1, 0] = (xd-1)
+    if random.random() < 0.5:
+        offset = 5
+        if random.random() < 0.5:
+            offset *= -1
+        poi_positions[1, 1] = yd/2 + offset
+    else:
+        poi_positions[1, 1] = yd/2
 
     return poi_positions
 

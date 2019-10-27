@@ -103,6 +103,7 @@ def import_poi_values(p):
 
 def run_visualizer(episode_reward):
     p = Parameters()
+    p.load_yaml("../Output_Data/params.yaml")
     scale_factor = 20  # Scaling factor for images
     width = -15  # robot icon widths
     x_map = p.x_dim + 10  # Slightly larger so POI are not cut off
@@ -196,4 +197,4 @@ def run_visualizer(episode_reward):
                     p.running = False
 
 
-run_visualizer(20)
+run_visualizer(0)

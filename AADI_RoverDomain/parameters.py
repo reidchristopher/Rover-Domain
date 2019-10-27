@@ -50,6 +50,7 @@ class Parameters:
         self.step_suggestion_switch = False  # Switch suggestion types at a specified rover step
 
         self.poi_chance = 0.03
+        self.output_dir = "test_output_dir/"
 
     def load_yaml(self, filename):
         """

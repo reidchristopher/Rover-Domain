@@ -13,12 +13,14 @@ from AADI_RoverDomain.parameters import Parameters
 from AADI_RoverDomain.rover_domain import RoverDomain
 import csv
 import os
+import subprocess
 import sys
 import numpy as np
 
 
-def save_reward_history(reward_history, file_name):
-    dir_name = 'Output_Data/'  # Intended directory for output files
+def save_reward_history(p, reward_history, file_name):
+    dir_name = p.output_dir
+
     save_file_name = os.path.join(dir_name, file_name)
 
     with open(save_file_name, 'a+', newline='') as csvfile:  # Record reward history for each stat run
@@ -27,7 +29,7 @@ def save_reward_history(reward_history, file_name):
 
 
 def save_rover_path(p, rover_path):  # Save path rovers take using best policy found
-    dir_name = 'Output_Data/'  # Intended directory for output files
+    dir_name = p.output_dir
     nrovers = p.num_rovers
 
     rpath_name = os.path.join(dir_name, 'Rover_Paths.txt')
@@ -56,7 +58,8 @@ def run_homogeneous_rovers(paramfile=None):
     p = Parameters()
     if paramfile is not None:
         p.load_yaml(paramfile)
-    p.save_yaml("Output_Data/params.yaml")
+    subprocess.call(["mkdir", "-p", p.output_dir])  # Make a spot to save files
+    p.save_yaml(os.path.join(p.output_dir, "params.yaml"))
     cc = Ccea(p)
     nn = NeuralNetwork(p)
     rd = RoverDomain(p)
@@ -138,17 +141,18 @@ def run_homogeneous_rovers(paramfile=None):
             cc.down_select()  # Choose new parents and create new offspring population
 
         if p.reward_type == "Global":
-            save_reward_history(reward_history, "Global_Reward.csv")
+            save_reward_history(p, reward_history, "Global_Reward.csv")
         if p.reward_type == "Difference":
-            save_reward_history(reward_history, "Difference_Reward.csv")
+            save_reward_history(p, reward_history, "Difference_Reward.csv")
         if p.reward_type == "DPP":
-            save_reward_history(reward_history, "DPP_Reward.csv")
+            save_reward_history(p, reward_history, "DPP_Reward.csv")
         if p.reward_type == "SDPP":
-            save_reward_history(reward_history, "SDPP_Reward.csv")
+            save_reward_history(p, reward_history, "SDPP_Reward.csv")
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         run_homogeneous_rovers(sys.argv[1])
+
     else:
         run_homogeneous_rovers()
