@@ -6,7 +6,6 @@ from AADI_RoverDomain.rover_setup import *
 class RoverDomain:
 
     def __init__(self, p):
-
         # World attributes
         self.world_x = p.x_dim
         self.world_y = p.y_dim
@@ -38,14 +37,12 @@ class RoverDomain:
         self.poi_rewards = np.zeros(p.num_pois)
         self.poi_chance = p.poi_chance
 
-
     def inital_world_setup(self):
         """
         Set rover starting positions, POI positions and POI values
         :return: none
         """
-
-        if self.create_new_world_config == True:
+        if self.create_new_world_config:
             # Initialize rover positions
             self.rover_pos = init_rover_pos_random_concentrated(self.nrovers, self.world_x, self.world_y)
             self.rover_initial_pos = self.rover_pos.copy()  # Track initial setup
@@ -152,7 +149,6 @@ class RoverDomain:
             self.rover_pos[rover_id, 1] += y
             self.rover_pos[rover_id, 2] = theta
 
-
         # Update rover path
         for rover_id in range(self.nrovers):
             self.rover_path[self.istep, rover_id, 0] = self.rover_pos[rover_id, 0]
@@ -177,7 +173,8 @@ class RoverDomain:
         joint_state = np.zeros((self.nrovers, self.n_rover_inputs))
 
         for rover_id in range(self.nrovers):
-            self_x = self.rover_pos[rover_id, 0]; self_y = self.rover_pos[rover_id, 1]
+            self_x = self.rover_pos[rover_id, 0]
+            self_y = self.rover_pos[rover_id, 1]
             self_orient = self.rover_pos[rover_id, 2]
 
             rover_state = [0.0 for _ in range(int(360 / self.angle_res))]
@@ -211,7 +208,7 @@ class RoverDomain:
 
             # Log rover distances into brackets
             for other_rover_id in range(self.nrovers):
-                if other_rover_id == rover_id: # Ignore self
+                if other_rover_id == rover_id:  # Ignore self
                     continue
                 rov_x = self.rover_pos[other_rover_id, 0]
                 rov_y = self.rover_pos[other_rover_id, 1]
@@ -267,8 +264,8 @@ class RoverDomain:
 
         return joint_state
 
-
-    def get_angle_dist(self, rovx, rovy, x, y):
+    @staticmethod
+    def get_angle_dist(rovx, rovy, x, y):
         """
         Computes angles and distance between two predators relative to (1,0) vector (x-axis)
         :param rovx: X-Position of rover
@@ -277,7 +274,8 @@ class RoverDomain:
         :param y: Y-Position of POI or other rover
         :return: angle, dist
         """
-        vx = x - rovx; vy = y - rovy
+        vx = x - rovx
+        vy = y - rovy
         angle = math.atan(vy/vx)*(180/math.pi)
 
         if angle < 0:
@@ -290,7 +288,6 @@ class RoverDomain:
         dist = math.sqrt((vx * vx) + (vy * vy))
 
         return angle, dist
-
 
     def calc_global(self):
         """
@@ -342,3 +339,126 @@ class RoverDomain:
 class MultiRewardRD(RoverDomain):
     def __init__(self, p):
         super(MultiRewardRD, self).__init__(p)
+        self.poi_types = p.poi_types
+        if len(self.poi_types) != self.n_pois:
+            raise ValueError("Must specify POI type for ALL POI (length does not match num_poi)")
+
+        # store the sequence as a graph, with each type pointing to the immediate parent(s) which must be satisfied
+        # for it to be counted as a score.
+        self.sequence = p.poi_sequence
+
+        # POI visited is a dictionary which keeps track of which types have been visited
+        self.poi_visited = {}
+        for t in self.sequence:
+            self.poi_visited[t] = False
+
+        # Override the size of the observations matrix
+        # self.rover_observations = np.zeros((self.n_rovers, 1 + len(self.poi_visited), self.n_obs_sections))
+
+    def reset_to_init(self):
+        super(MultiRewardRD, self).reset_to_init()
+        for t in self.poi_types:
+            self.poi_visited[t] = False
+
+    def mark_poi_observed(self, poi_type):
+        """
+        Updates the self.poi_visited[poi_type] if the dependencies are properly met
+        Only does the update for the type being queried.
+
+        :param poi_type: String, the type identifier of the poi being observed
+        :return: None
+        """
+        parents = self.sequence[poi_type]
+        if parents is not None:
+            observed = True
+            for p in parents:
+                if not self.poi_visited[p]:
+                    observed = False
+                    break
+            if observed:
+                self.poi_visited[poi_type] = True
+        else:
+            # If no parents
+            self.poi_visited[poi_type] = True
+
+    def update_sequence_visits(self):
+        """
+        Uses current rover positions to update observations.
+
+        :return: None
+        """
+        # TODO implement tight coupling in this scenario (can use parent class functionality?)
+        # TODO review this function for proper references
+        for rover in self.rover_positions:
+            for i, poi in enumerate(self.poi_positions):
+                # POI is within observation distance
+                # print("Distance to {} : {}".format(np.array(poi), np.linalg.norm(np.array(rover) - np.array(poi))))
+                if np.linalg.norm(np.array(rover) - np.array(poi)) < self.interaction_dist:
+                    self.mark_poi_observed(self.poi_types[i])
+
+    def easy_sequential_score(self):
+        """
+        The global reward based on how far into the POI observation graph you get
+        :return: Global reward based on graph completion
+        """
+        return sum([1 for x in self.poi_visited.values() if x])
+
+    def sequential_score(self):
+        """
+        Checks if all the POI in poi_visited have been observed. Returns a fixed score at the moment.
+
+        :return: Global reward score for the agents based on the sequential observation task
+        """
+        # Update to see if the requirements are now set
+        # (done until no more updates are found, to account for cascading updates)
+        # Now with the updated graph, we check if all POI are observed
+        if all(self.poi_visited.values()):
+            return 1
+        else:
+            return 0
+
+    # Needs to observe the different types of poi, and also make the observed POI dictionary into the state as well
+    def update_observations(self):
+        """
+        Updates the internally held observations of each agent.
+        State is represented as:
+        <agents, poi type A, poi type B, ... , poi type N, poi A observed, poi B observed, ... , poi N observed>
+        Where "agents" and each "poi type" are split into the quadrants centered around the rover.
+        "poi X observed" is a 0-1 flag on whether or not a POI of type A has been successfully observed.
+
+        Accommodates the reorienting/fixed frame differences.
+
+        :return: None
+        """
+        # TODO review this function for proper references
+        # Reset the observation matrix
+        for rover_id in range(self.n_rovers):
+            for type_id in range(1 + len(self.poi_visited)):
+                for section_id in range(self.n_obs_sections):
+                    self.rover_observations[rover_id, type_id, section_id] = 0.
+
+        for rover_id in range(self.n_rovers):
+            # Update rover type observations
+            for other_rover_id in range(self.n_rovers):
+                # agents do not sense self (ergo skip self comparison)
+                if rover_id == other_rover_id:
+                    continue
+                self.add_to_sensor(
+                    rover_id,
+                    0,
+                    self.rover_positions[other_rover_id, 0],
+                    self.rover_positions[other_rover_id, 1],
+                    1.
+                )
+            # Update POI type observations
+            for poi_id in range(self.n_pois):
+                poi_type = self.poi_types[poi_id]
+                # The index in this call is the poi type +1 (to offset the rovers first)
+                # and then is assigned to it's respective section
+                self.add_to_sensor(
+                    rover_id,
+                    poi_type + 1,
+                    self.poi_positions[poi_id, 0],
+                    self.poi_positions[poi_id, 1],
+                    1.
+                )
