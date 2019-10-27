@@ -60,7 +60,7 @@ def run_homogeneous_rovers():
     if p.gen_suggestion_switch and p.step_suggestion_switch:
         sys.exit('Gen Switch and Step Switch are both True')
 
-    rd.inital_world_setup()
+    rd.initial_world_setup()
     print("Reward Type: ", p.reward_type)
     if p.reward_type != "SDPP":
         assert(p.suggestion_type == "none")

@@ -37,7 +37,7 @@ class RoverDomain:
         self.poi_rewards = np.zeros(p.num_pois)
         self.poi_chance = p.poi_chance
 
-    def inital_world_setup(self):
+    def initial_world_setup(self):
         """
         Set rover starting positions, POI positions and POI values
         :return: none
