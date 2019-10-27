@@ -327,6 +327,7 @@ class RoverDomain:
     def random_change_poi(self):
         """
         Does not *add* a poi per-se, but instead turns a zero-value POI into a non-zero value
+        and a non-zero value POI to value zero
         :return: None
         """
         for index in range(len(self.poi_values)):
@@ -336,3 +337,8 @@ class RoverDomain:
                     self.poi_values[index] = random.randint(1, 10)
                 else:
                     self.poi_values[index] = 0
+
+
+class MultiRewardRD(RoverDomain):
+    def __init__(self, p):
+        super(MultiRewardRD, self).__init__(p)
