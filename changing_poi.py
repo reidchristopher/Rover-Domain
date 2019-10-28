@@ -10,7 +10,7 @@ from Cython_Code.neural_network import NeuralNetwork
 from Cython_Code.homogeneous_rewards import calc_global, calc_difference, calc_dpp
 
 from AADI_RoverDomain.parameters import Parameters
-from AADI_RoverDomain.rover_domain import RoverDomain
+from AADI_RoverDomain.rover_domain import RoverDomain, MultiRewardRD
 import csv
 import os
 import subprocess
@@ -62,7 +62,8 @@ def run_homogeneous_rovers(paramfile=None):
     p.save_yaml(os.path.join(p.output_dir, "params.yaml"))
     cc = Ccea(p)
     nn = NeuralNetwork(p)
-    rd = RoverDomain(p)
+    # rd = RoverDomain(p)
+    rd = MultiRewardRD(p)
 
     # Checks to make sure gen switch and step switch are not both engaged
     if p.gen_suggestion_switch and p.step_suggestion_switch:
@@ -112,11 +113,6 @@ def run_homogeneous_rovers(paramfile=None):
                     for rover_id in range(p.num_rovers):
                         policy_id = int(cc.team_selection[rover_id, team_number])
                         cc.fitness[rover_id, policy_id] = d_reward[rover_id]
-                elif p.reward_type == "DPP" or p.reward_type == "SDPP":
-                    dpp_reward = calc_dpp(p, rd.rover_path, rd.poi_values, rd.poi_pos, global_reward, suggestion)
-                    for rover_id in range(p.num_rovers):
-                        policy_id = int(cc.team_selection[rover_id, team_number])
-                        cc.fitness[rover_id, policy_id] = dpp_reward[rover_id]
                 else:
                     sys.exit('Incorrect Reward Type')
 
@@ -134,6 +130,8 @@ def run_homogeneous_rovers(paramfile=None):
 
             global_reward = calc_global(p, rd.rover_path, rd.poi_values, rd.poi_pos)
             reward_history.append(global_reward)
+            print("Global reward:", global_reward)
+            print("RD Sequence score:", rd.sequential_score())
 
             if gen == (p.generations-1):  # Save path at end of final generation
                 save_rover_path(p, rd.rover_path)
@@ -146,8 +144,6 @@ def run_homogeneous_rovers(paramfile=None):
             save_reward_history(p, reward_history, "Difference_Reward.csv")
         if p.reward_type == "DPP":
             save_reward_history(p, reward_history, "DPP_Reward.csv")
-        if p.reward_type == "SDPP":
-            save_reward_history(p, reward_history, "SDPP_Reward.csv")
 
 
 if __name__ == '__main__':

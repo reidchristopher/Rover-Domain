@@ -381,6 +381,11 @@ class MultiRewardRD(RoverDomain):
             # If no parents
             self.poi_visited[poi_type] = True
 
+    def step(self, joint_action):
+        joint_state, done = super(MultiRewardRD, self).step(joint_action)
+        self.update_sequence_visits()
+        return joint_state, done
+
     def update_sequence_visits(self):
         """
         Uses current rover positions to update observations.
@@ -388,12 +393,11 @@ class MultiRewardRD(RoverDomain):
         :return: None
         """
         # TODO implement tight coupling in this scenario (can use parent class functionality?)
-        # TODO review this function for proper references
-        for rover in self.rover_positions:
-            for i, poi in enumerate(self.poi_positions):
+        for rover in self.rover_pos:
+            for i, poi in enumerate(self.poi_pos):
                 # POI is within observation distance
-                # print("Distance to {} : {}".format(np.array(poi), np.linalg.norm(np.array(rover) - np.array(poi))))
-                if np.linalg.norm(np.array(rover) - np.array(poi)) < self.interaction_dist:
+                # print("Distance to {} : {}".format(np.array(poi), np.linalg.norm(np.array(rover[:2]) - np.array(poi))))
+                if np.linalg.norm(np.array(rover[:2]) - np.array(poi)) < self.obs_radius:
                     self.mark_poi_observed(self.poi_types[i])
 
     def easy_sequential_score(self):

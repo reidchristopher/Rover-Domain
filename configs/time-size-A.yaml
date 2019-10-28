@@ -1,9 +1,11 @@
 num_pois: 2
-num_steps: 30
-x_dim: 20
-y_dim: 20
-num_rovers: 4
+num_steps: 20
+x_dim: 15
+y_dim: 15
+num_rovers: 5
 coupling: 1
 poi_chance: 0.0
 stat_runs: 5
 output_dir: "Output_Data/time-sizeA/"
+poi_types: [0, 1]
+poi_sequence: {0: [], 1: [0]}
