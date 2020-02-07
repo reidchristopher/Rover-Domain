@@ -197,3 +197,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Cython C files
+*.c
+
+

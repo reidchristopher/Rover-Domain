@@ -42,7 +42,7 @@ def save_rover_path(p, rover_path):  # Save path rovers take using best policy f
 
 
 # HOMOGENEOUS ROVER TEAMS ---------------------------------------------------------------------------------------------
-def run_homogeneous_rovers():
+def run_homogeneous_rovers(p):
     # For Python code
     # p = Parameters()
     # cc = ccea.Ccea(p)
@@ -50,11 +50,13 @@ def run_homogeneous_rovers():
     # rd = RoverDomain(p)
 
     # For Cython Code
-    p = Parameters()
+    # p = Parameters()
     cc = Ccea(p)
     nn = NeuralNetwork(p)
     rd = RoverDomain(p)
 
+    from AADI_RoverDomain.rover_setup import init_rover_pos_fixed_middle
+    rd.rover_initial_pos = init_rover_pos_fixed_middle(p.num_rovers, p.x_dim, p.y_dim)
 
     # Checks to make sure gen switch and step switch are not both engaged
     if p.gen_suggestion_switch and p.step_suggestion_switch:
@@ -122,6 +124,7 @@ def run_homogeneous_rovers():
 
             global_reward = calc_global(p, rd.rover_path, rd.poi_values, rd.poi_pos)
             reward_history.append(global_reward)
+            print(global_reward)
 
             if gen == (p.generations-1):  # Save path at end of final generation
                 save_rover_path(p, rd.rover_path)
@@ -138,7 +141,21 @@ def run_homogeneous_rovers():
             save_reward_history(reward_history, "SDPP_Reward.csv")
 
 
-def main():
-    run_homogeneous_rovers()
+def main(p):
+    run_homogeneous_rovers(p)
 
-main()  # Run the program
+if __name__ == "__main__":
+
+    file_list = ["global_params_40x40.yaml", "global_params_100x100.yaml"]
+
+    for param_file in file_list:
+
+        for _ in range(10):
+
+            p = Parameters()
+
+            p.load_yaml(param_file)
+
+            main(p)  # Run the program
+
+        save_reward_history([], "Global_Reward.csv")

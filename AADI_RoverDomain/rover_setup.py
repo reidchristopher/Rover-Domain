@@ -405,9 +405,9 @@ def init_poi_vals_half_and_half(num_pois):
 
     for poi_id in range(num_pois):
         if poi_id%2 == 0:
-            poi_vals[poi_id] *= 12.0
+            poi_vals[poi_id] *= 1.0
         else:
-            poi_vals[poi_id] *= 5.0
+            poi_vals[poi_id] *= 1.0
 
     return poi_vals
 
