@@ -28,7 +28,7 @@ def generate_color_array(num_colors):  # Generates num random colors
 
 def import_rover_paths(p):
     rover_paths = np.zeros((p.stat_runs, (p.num_steps+1), p.num_rovers, 2))
-    posFile = open('../Output_Data/Rover_Paths.txt', 'r')
+    posFile = open('../Output_Data/Rover_Paths9_1.txt', 'r')
 
     sr = 0
     rover_id = 0
@@ -65,7 +65,7 @@ def import_poi_positions(p):
 
     line_count = i + 1
 
-    posFile = open('../Output_Data/POI_Positions.txt', 'r')
+    posFile = open('../Output_Data/POI_Positions9.txt', 'r')
 
     count = 1
     coordMat = []
@@ -103,7 +103,7 @@ def import_poi_values(p):
 
 def run_visualizer(episode_reward):
     p = Parameters()
-    p.load_yaml("../Output_Data/params.yaml")
+    p.load_yaml("../Output_Data/global_params_40x40_v2.yaml")
     scale_factor = 20  # Scaling factor for images
     width = -15  # robot icon widths
     x_map = p.x_dim + 10  # Slightly larger so POI are not cut off
@@ -178,7 +178,7 @@ def run_visualizer(episode_reward):
                         pygame.draw.circle(game_display, line_color, (origin_x, origin_y), circle_rad)
 
             pygame.display.update()
-            time.sleep(0.1)
+            time.sleep(0.3)
 
         scoresurface = myfont.render('The system reward obtained is ' + str(round(episode_reward, 2)), False, (0, 0, 0))
         draw(game_display, scoresurface, x_map*scale_factor-500, 20)

@@ -4,16 +4,16 @@ num_inputs: 8
 num_nodes: 9
 num_outputs: 2
 num_pois: 2
-num_rovers: 4
+num_rovers: 6
 num_steps: 90
 reward_type: Global
-coupling: 1
-generations: 1000
+coupling: 3
+generations: 10000
 stat_runs: 1
 
 parent_pop_size: 10
 offspring_pop_size: 10
-mutation_prob: 1
+mutation_prob: 1.0
 mutation_rate: 0.01
 
 min_distance: 1.0

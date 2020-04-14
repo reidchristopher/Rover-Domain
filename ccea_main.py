@@ -146,7 +146,7 @@ def main(p):
 
 if __name__ == "__main__":
 
-    file_list = ["global_params_40x40.yaml", "global_params_100x100.yaml"]
+    file_list = ["params.yaml", "global_params_100x100.yaml"]
 
     for param_file in file_list:
 

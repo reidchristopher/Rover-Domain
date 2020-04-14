@@ -11,13 +11,14 @@ from Cython_Code.homogeneous_rewards import calc_global, calc_difference, calc_d
 
 from AADI_RoverDomain.parameters import Parameters
 from AADI_RoverDomain.rover_domain import RoverDomain
-from AADI_RoverDomain.rover_setup import init_rover_pos_fixed_middle
+from AADI_RoverDomain.rover_setup import init_rover_pos_fixed_middle, init_poi_positions_txt_file
 import csv; import os; import sys
 import numpy as np
 
-from local_rewards import StandardBasisRewardEvaluator
+from local_rewards import OneDGaussianReward
 import random
 import pickle
+from multiprocessing import Process
 
 
 def save_reward_history(reward_history, file_name):
@@ -29,11 +30,11 @@ def save_reward_history(reward_history, file_name):
         writer.writerow(['Performance'] + reward_history)
 
 
-def save_rover_path(p, rover_path):  # Save path rovers take using best policy found
+def save_rover_path(p, rover_path, poi_pos, modifier=""):  # Save path rovers take using best policy found
     dir_name = 'Output_Data/'  # Intended directory for output files
     nrovers = p.num_rovers
 
-    rpath_name = os.path.join(dir_name, 'Rover_Paths.txt')
+    rpath_name = os.path.join(dir_name, 'Rover_Paths' + modifier + '.txt')
 
     rpath = open(rpath_name, 'a')
     for rov_id in range(nrovers):
@@ -45,6 +46,21 @@ def save_rover_path(p, rover_path):  # Save path rovers take using best policy f
         rpath.write('\n')
     rpath.write('\n')
     rpath.close()
+
+
+def save_poi_pos(poi_pos, modifier):
+
+    dir_name = "Output_Data/"
+    pcoords_name = os.path.join(dir_name, "POI_Positions" + modifier + '.txt')
+    poi_coords = open(pcoords_name, 'w')
+    for p_id in range(2):  # Record POI positions and values
+        poi_coords.write('%f' % poi_pos[p_id, 0])
+        poi_coords.write('\t')
+        poi_coords.write('%f' % poi_pos[p_id, 1])
+        poi_coords.write('\t')
+    poi_coords.write('\n')
+    poi_coords.close()
+
 
 
 def save_nn_weights(weights, file_name):
@@ -136,12 +152,10 @@ def find_global_single_reward(reward_save_file, nn_save_file, global_p=None):
         save_reward_history(reward_history, reward_save_file)
 
 
-def find_global_policy(local_reward_policy_weights, reward_save_file, nn_save_file, global_p=None):
+def find_global_policy(local_reward_policy_weights, reward_save_file, nn_save_file, global_p, path_file_mod=""):
     print(len(local_reward_policy_weights))
 
     # For Cython Code
-    if global_p is None:
-        global_p = Parameters()
 
     global_p.num_outputs = len(local_reward_policy_weights)
 
@@ -223,15 +237,16 @@ def find_global_policy(local_reward_policy_weights, reward_save_file, nn_save_fi
             reward_history.append(reward)
             print(reward)
 
-            if gen == (global_p.generations - 1):  # Save path at end of final generation
-                save_rover_path(global_p, rd.rover_path)
+            if gen >= (global_p.generations - 100):  # Save path at end of final generation
+                save_rover_path(global_p, rd.rover_path, rd.poi_pos, path_file_mod + "_%d" % (global_p.generations - gen))
 
             cc.down_select()  # Choose new parents and create new offspring population
 
         save_reward_history(reward_history, reward_save_file)
+        save_poi_pos(rd.poi_pos, path_file_mod)
 
 
-def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None):
+def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None, name="", path_file_mod=""):
     # For Python code
     # p = Parameters()
     # cc = ccea.Ccea(p)
@@ -252,6 +267,7 @@ def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None):
 
     rd.initial_world_setup()
     rd.rover_initial_pos = init_rover_pos_fixed_middle(p.num_rovers, p.x_dim, p.y_dim)
+    rd.poi_pos = init_poi_positions_txt_file(2)
     rover_init_init_pos = rd.rover_initial_pos
 
 
@@ -266,6 +282,8 @@ def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None):
         reward_history = []
 
         for gen in range(p.generations):
+            if name != "":
+                print("Reward %s" % name)
             print("Gen: %i" % gen)
 
             cc.select_policy_teams()
@@ -311,8 +329,8 @@ def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None):
             reward_history.append(max(reward))
             print(max(reward))
 
-            if gen == (p.generations - 1):  # Save path at end of final generation
-                save_rover_path(p, rd.rover_path)
+            if gen >= (p.generations - 10):  # Save path at end of final generation
+                save_rover_path(p, rd.rover_path, path_file_mod + "_%d" % (p.generations - gen))
 
             cc.down_select()  # Choose new parents and create new offspring population
 
@@ -348,11 +366,42 @@ def find_local_policy(evaluator, reward_save_file, nn_save_file, p=None):
 
     return best_weights
 
+def run_test(args, run):
+    params = Parameters()
+    num_states = 8
+    local_policy_weights = []
+    if args.from_file:
+        for i in range(num_states):
+
+            means = [-1, 0, 1, 2]
+
+            for mean in means:
+                local_policy_weights.append(load_nn_weights("local_weights_%d_mean_%d_run_%d.pickle" % (i, mean, run)))
+    else:
+        exit()
+        # params.load_yaml("local_params.yaml")
+        #
+        # for i in range(0, num_states, 2):
+        #
+        #     means = [0, 2]
+        #
+        #     for mean in means:
+        #         evaluator = OneDGaussianReward(i, mean, 1)
+        #         local_policy_weights.append(find_local_policy(evaluator, "local_rewards_%d_mean_%d.csv" % (i, mean),
+        #                                                       "local_weights_%d_mean_%d.pickle" % (i, mean),
+        #                                                       p=params, name="Local %d w/ Mean %d" % (i, mean),
+        #                                                      path_file_mod="%d_%d" % (i, mean)))
+
+    test_types = ["40x40"]  # "100x100"] #, "200x200"]
+    for test in test_types:
+        reward_file = "global_rewards_%s_with_all_v2_round3.csv" % test
+        weights_file = "global_weights_%s_with_all.pickle" % test
+        params.load_yaml("global_params_%s_v2.yaml" % test)
+        find_global_policy(local_policy_weights, reward_file, weights_file, params, path_file_mod="%d" % run)
 
 def main():
 
-    params = Parameters()
-
+    processes = []
 
     import argparse
     parser = argparse.ArgumentParser(description='Run CCEA with multiple rewards')
@@ -360,27 +409,16 @@ def main():
     parser.add_argument('--num_runs', default=1, type=int)
     args = parser.parse_args()
 
+    # for run in range(args.num_runs):
+
     for run in range(args.num_runs):
-        local_policy_weights = []
-        params.load_yaml("local_params.yaml")
-        if args.from_file:
-            for i in range(params.num_inputs):
-                local_policy_weights.append(load_nn_weights("local_weights_%d.pickle"))
-        else:
 
-            for i in range(params.num_inputs):
+        processes.append(Process(target=run_test, args=(args, run)))
+        processes[run].start()
 
-                evaluator = StandardBasisRewardEvaluator(i, params.num_inputs)
+    for run in range(args.num_runs):
 
-                local_policy_weights.append(find_local_policy(evaluator, "local_rewards_%d.csv" % i,
-                                                              "local_weights_%d_%d.pickle" % (i, run),
-                                                              p=params))
-        test_types = ["40x40", "100x100"] #, "200x200"]
-        for test in test_types:
-            reward_file = "global_rewards_%s.csv" % test
-            weights_file = "global_weights_%s.pickle" % test
-            params.load_yaml("global_params_%s.yaml" % test)
-            find_global_policy(local_policy_weights, reward_file, weights_file, global_p=params)
+        processes[run].join()
 
 
 if __name__ == "__main__":
